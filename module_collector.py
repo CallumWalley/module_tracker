@@ -131,6 +131,14 @@ def main():
     if os.environ['USER'] != "nesi-apps-admin":
         log.error(
             "COMMAND SHOULD BE RUN AS 'nesi-apps-admin' ELSE LICENCE STATS WONT WORK")
+            
+    # Folders exist?
+    if not os.path.exists('tags'):
+        log.warning("Creating missing directory 'tags'")
+        os.makedirs('tags')
+    if not os.path.exists('tags'):
+        log.warning("Creating missing directory 'cache'")
+        os.makedirs('cache')
 
     # On mahuika?
     if not (socket.gethostname().startswith('mahuika')):
@@ -185,54 +193,50 @@ def main():
     slurm_dat = lc.get_slurm_tokens()
     # lc.update_overwrites(slurm_dat)
 
-    licence_meta_overwrite = c.readmake_json('cache/licence_meta_overwrite.json')
-    c.deep_merge(licence_meta_overwrite, slurm_dat)
-    licence_meta=slurm_dat
+    licence_meta = c.readmake_json('tags/licence_meta.json')
+    c.deep_merge(licence_meta, slurm_dat)
+    licence_list=slurm_dat
 
-    for key, value in licence_meta.items():
+    for key, value in licence_list.items():
         lc.validate_lic_file(key, value)
 
-    for key, value in licence_meta.items():
+    for key, value in licence_list.items():
         lc.lmutil(key, value)
 
-    lc.assign_aliases(licence_meta)   # Assign licence aliases if any.
-    lc.update_history(licence_meta)   # Loads previous history data.
-
-    c.writemake_json('cache/licence_meta.json',
-                     licence_meta)  # Update Licecne object
+    lc.assign_aliases(licence_list)   # Assign licence aliases if any.
+    lc.update_history(licence_list)   # Loads previous history data.
 
     # lc.attach_lic(lic_dat, module_dat) # Attach Licence Data to module data.
 
     # attach tags
     # pull from repo
-    domainTags = c.pull(
+    domain_tags = c.pull(
         "https://raw.githubusercontent.com/nesi/modlist/master/domainTags.json")
 
-    if isinstance(domainTags, dict):
-        c.writemake_json('domainTags.json', domainTags)
+    if isinstance(domain_tags, dict):
+        c.writemake_json('tags/domain_tags.json', domain_tags)
     else:
         log.error("Using cached version of domain tags")
-        domainTags = c.readmake_json('domainTags.json', {"biology": [], "engineering": [], "physics": [], "analytics": [
+        domain_tags = c.readmake_json('domain_tags.json', {"biology": [], "engineering": [], "physics": [], "analytics": [
         ], "visualisation": [], "geology": [], "mathematics": [], "chemistry": [], "language": []})
 
-    licenceTags = c.readmake_json('licenceTags.json', {"proprietary": []})
+    licence_tags = c.readmake_json('tags/licence_tags.json', {"proprietary": []})
 
     assign_tags(all_modules, "domains", domainTags)
-    assign_tags(all_modules, "licence_type", licenceTags)
+    assign_tags(all_modules, "licence_type", licence_tags)
 
     # Apply Overwrites
-    module_overwrite_dat = c.readmake_json('overwrites.json')
+    #module_overwrite_dat = c.readmake_json('master_overwrites.json')
     #c.deep_merge(module_dat, module_overwrite_dat)
 
     timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     log.info("Updated as of " + timestamp)
-
     output_dict = {"modules": all_modules, "date": timestamp}
 
     # Write to cache
-
-    c.writemake_json('cache/full_cache2.json', output_dict)
-    c.writemake_json('moduleList2.json', output_dict)
+    #c.writemake_json('cache/full_cache2.json', output_dict)
+    c.writemake_json('module_list.json', output_dict)
+    c.writemake_json('licence_list.json', licence_list)
 
     print("DONE!")
 

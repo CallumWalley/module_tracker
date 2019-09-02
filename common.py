@@ -70,8 +70,8 @@ def deep_merge(over, under, write_log=False):
             elif isinstance(value, dict):
                 # If dict key exists in both, we need to go deeper.
                 if write_log:
-                    diff_log += ("Inside " + key + "...")
-                log.debug("Inside " + key + "...")
+                    diff_log += ("Inside " + key + "...\n")
+                log.debug("Inside " + key + "...\n")
                 node = under.setdefault(key, {})
                 deep_merge(value, node, write_log)
 
