@@ -8,13 +8,12 @@ import datetime
 import math
 import json
 import logging
-import licence_collector as lc
 import common as c
 from copy import deepcopy
 
 # test
 module_primitive = {"description": "", "domains": [], "licence_type": "",
-                    "homepage": "", "support": "", "machines": {}, "licences": {}}
+                    "homepage": "", "support": "", "machines": {}}
 log = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 diff_log = ""
@@ -116,21 +115,16 @@ def assign_tags(module_dat, tag_field, tags):
                 log.warning(
                     "Error! tag '" + app + "' does not correspond to a application on the platform.")
 
-
 def main():
     # Start
     # Logger setup
     log.info("Starting...")
     # Read Settings
     settings = c.readmake_json('settings.json', {"remote": "", "token": "", "update": [
-                               "mahuika", "maui"], "diff": ["mahuika", "maui"]})
+                               "mahuika", "maui"]})
     log.info(json.dumps(settings))
 
     #===== Checks =====#
-    # Is correct user
-    if os.environ['USER'] != "nesi-apps-admin":
-        log.error(
-            "COMMAND SHOULD BE RUN AS 'nesi-apps-admin' ELSE LICENCE STATS WONT WORK")
             
     # Folders exist?
     if not os.path.exists('tags'):
@@ -189,25 +183,6 @@ def main():
     c.deep_merge(maui_modules, mahuika_modules)
     all_modules=mahuika_modules
 
-    # Licence Stuff
-    slurm_dat = lc.get_slurm_tokens()
-    # lc.update_overwrites(slurm_dat)
-
-    licence_meta = c.readmake_json('tags/licence_meta.json')
-    c.deep_merge(licence_meta, slurm_dat)
-    licence_list=slurm_dat
-
-    for key, value in licence_list.items():
-        lc.validate_lic_file(key, value)
-
-    for key, value in licence_list.items():
-        lc.lmutil(key, value)
-
-    lc.assign_aliases(licence_list)   # Assign licence aliases if any.
-    lc.update_history(licence_list)   # Loads previous history data.
-
-    # lc.attach_lic(lic_dat, module_dat) # Attach Licence Data to module data.
-
     # attach tags
     # pull from repo
     domain_tags = c.pull(
@@ -220,10 +195,8 @@ def main():
         domain_tags = c.readmake_json('domain_tags.json', {"biology": [], "engineering": [], "physics": [], "analytics": [
         ], "visualisation": [], "geology": [], "mathematics": [], "chemistry": [], "language": []})
 
-    licence_tags = c.readmake_json('tags/licence_tags.json', {"proprietary": []})
 
-    assign_tags(all_modules, "domains", domainTags)
-    assign_tags(all_modules, "licence_type", licence_tags)
+    assign_tags(all_modules, "domains", domain_tags)
 
     # Apply Overwrites
     #module_overwrite_dat = c.readmake_json('master_overwrites.json')
@@ -236,7 +209,6 @@ def main():
     # Write to cache
     #c.writemake_json('cache/full_cache2.json', output_dict)
     c.writemake_json('module_list.json', output_dict)
-    c.writemake_json('licence_list.json', licence_list)
 
     print("DONE!")
 

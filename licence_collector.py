@@ -83,16 +83,20 @@ def get_slurm_tokens():
 
     return lic_dict
 
-def update_overwrites(licences):
+def update_overwrites():
     """Updates overwrite file with primitive of any new licences in dict"""
 
-    overwrites=c.readmake_json('cache/licence_meta_overwrite.json')
-    for key in licences.keys():
-        if not key in overwrites:
-            overwrites[key] = deepcopy(licence_primitive)
-            c.log.warning('New primitive', key, ' added to licence_meta_overwrite')
+    licence_meta=c.readmake_json('tags/licence_meta.json')
+    slurm_tokens=get_slurm_tokens()
+
+    for key in slurm_tokens.keys():
+        if not key in licence_meta:
+            licence_meta[key] = deepcopy(slurm_tokens[key])
+            c.log.info('New primitive' + key + ' added to licence_meta')
     
-    c.writemake_json('cache/licence_meta_overwrite.json', overwrites)
+    c.writemake_json('tags/licence_meta.json', licence_meta)
+
+
 
 def assign_aliases(licences):
 
@@ -135,13 +139,12 @@ def lmutil(key, value):
             if m:                
                 hour_index=datetime.datetime.now().hour-1
                 count_lic=float(m.groups()[1])
+
                 # Adjust history value, unless zero then set.
                 value["history"][hour_index] = round(((count_lic*day_weighting) + (value["history"][hour_index]*(1-day_weighting))),2) if value["history"][hour_index] else count_lic
-                # m.groups()[1]
-                # print(tuple([int(n) for n in m.groups()]))
                 log.info("Adjusted mean value for hour " + str(hour_index) + " :" + value["history"][hour_index])
 
-    return
+    return count_lic
 
 def update_history(licences):
     """Gets history data from previous license object"""
@@ -184,6 +187,10 @@ def validate_lic_file(key,value):
         log.error(key + ' has no licence file associated.')
     
     return
+    
+# def apply_soak(licence, soak_count):
+
+#     print(subprocess.check_output('scontrol' + 'update' + 'res=LS_' + licence.token  ' licenses=' + soak_count, shell=True).decode("utf-8"))
 
 
 def attach_lic(licence_dat, module_dat):
@@ -197,4 +204,54 @@ def attach_lic(licence_dat, module_dat):
                 app_value["licences"][lic]=lic_value
                 log.info('Licence ' + lic + ' attached to ' + app)
         
-#   stat.S_ISREG(statdat.st_mode)
+# # stat.S_ISREG(statdat.st_mode)
+
+# # while True:
+# #    if datetime.time(8, 0) < datetime.datetime.now().time() < datetime.time(17,0):
+#     interesting = False
+#     settings = []
+#     for (license_token, tracker) in trackers:
+#         (target, current) = next(tracker)
+#         if target != current:
+#             interesting = True
+#         settings.append(license_token + ':' + str(target))
+#     if interesting:
+#         cmd = ['scontrol', 'update', 'res=license_soak', 'licenses='+','.join(settings)]
+#         print("command", make_timestamp_text(), *cmd)
+#         try:
+#             check_output(cmd)
+#         except Exception as details:
+#             print('scontrol', details)
+        
+# #     time.sleep(POLL)
+
+def main()
+
+    # Is correct user
+    if os.environ['USER'] != "nesi-apps-admin":
+        log.error(
+            "COMMAND SHOULD BE RUN AS 'nesi-apps-admin' ELSE LICENCE STATS WONT WORK")
+
+
+
+                # Licence Stuff
+    slurm_dat = lc.get_slurm_tokens()
+    # lc.update_overwrites(slurm_dat)
+
+    licence_meta = c.readmake_json('tags/licence_meta.json')
+    c.deep_merge(licence_meta, slurm_dat)
+    licence_list=slurm_dat
+
+    for key, value in licence_list.items():
+        lc.validate_lic_file(key, value)
+
+    for key, value in licence_list.items():
+        lc.lmutil(key, value)
+
+    lc.assign_aliases(licence_list)   # Assign licence aliases if any.
+    lc.update_history(licence_list)   # Loads previous history data.
+
+    # lc.attach_lic(lic_dat, module_dat) # Attach Licence Data to module data.
+        licence_tags = c.readmake_json('tags/licence_tags.json', {"proprietary": []})
+    assign_tags(all_modules, "licence_type", licence_tags)
+    c.writemake_json('licence_list.json', licence_list)

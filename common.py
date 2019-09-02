@@ -69,8 +69,7 @@ def deep_merge(over, under, write_log=False):
             # If (non-zero) dictionary
             elif isinstance(value, dict):
                 # If dict key exists in both, we need to go deeper.
-                if write_log:
-                    diff_log += ("Inside " + key + "...\n")
+
                 log.debug("Inside " + key + "...\n")
                 node = under.setdefault(key, {})
                 deep_merge(value, node, write_log)
@@ -94,13 +93,13 @@ def deep_merge(over, under, write_log=False):
                 # Value replaced
                 log.debug(key + " case 5")
                 under[key] = value
-                log.info("Property '" + key + "' CHANGED from '" + under[key] +
+                log.debug("Property '" + key + "' CHANGED from '" + under[key] +
                          "' to '" + value + "'")
                 if write_log:
                     diff_log += ("Property '" + key +
                                               "' CHANGED from '" + under[key] +
                                               "' to '" + value + "'\n")
-                    log.info("Change written to log")
+                    log.debug("Change written to log")
 
         else:
             # Set key equal to value
@@ -109,6 +108,6 @@ def deep_merge(over, under, write_log=False):
             if write_log:
                 diff_log += ("Property " + key + " SET to " +
                                           json.dumps(value))
-                log.info("Change written to log")
+                log.debug("Change written to log")
 
     return diff_log
