@@ -136,7 +136,7 @@ def main():
     if not os.path.exists('tags'):
         log.warning("Creating missing directory 'tags'")
         os.makedirs('tags')
-    if not os.path.exists('tags'):
+    if not os.path.exists('cache'):
         log.warning("Creating missing directory 'cache'")
         os.makedirs('cache')
 
