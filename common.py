@@ -1,84 +1,114 @@
-import os, json, requests, logging
-
+import os
+import json
+import requests
+import logging
+import datetime
 log = logging.getLogger(__name__)
 
 def pull(address):
-    request=requests.get(address)
+    request = requests.get(address)
     if request.status_code == 200:
         try:
-            out_dict=request.json()
+            out_dict = request.json()
             return out_dict
         except:
-            log.error("Failed to convert request from " + address + " to dictionary.")  
-            print(request.content) 
+            log.error("Failed to convert request from " + address +
+                      " to dictionary.")
+            print(request.content)
     else:
-        log.error("Failed to pull from " + address + " (" + request.status_code + ").")
+        log.error("Failed to pull from " + address + " (" +
+                  request.status_code + ").")
     return 1
 
+
 #Read file at {path}. If not exist make one with {default} value
+
+
 def readmake_json(path, default={}):
     """Reads and returns JSON file as dictionary, if none exists one will be created with default value."""
     if not os.path.exists(path):
         log.error("No file at path '" + path + "'.")
-        with open(path, "w") as json_file: 
+        with open(path, "w") as json_file:
             json_file.write(json.dumps(default))
         log.error("Empty file created")
-    
+
     with open(path) as json_file:
-            log.info(path + " loaded.")
-            return json.load(json_file)
+        log.info(path + " loaded.")
+        return json.load(json_file)
+
 
 def writemake_json(path, outject):
-    with open(path, "w+") as json_file: 
+    with open(path, "w+") as json_file:
         json_file.write(json.dumps(outject))
         log.info(path + " updated")
 
-def deep_merge(over, under):
+
+def deep_merge(over, under, write_log=False):
     """Deep merges dictionary
     If conflict 'over' has right of way"""
+    diff_log = ""
+    #now=datetime.datetime.now()
+    # Returns difference if write log true
 
     for key, value in over.items():
-        
-        #If element is duplicate named dict, call self.
-        if isinstance(value, dict) and key in under:
 
-            log.debug("Recursed")
-            node = under.setdefault(key, {})
-            deep_merge(value, node)
+        if key in under:
+            # If match, ignore.
+            if under[key] == value:
+                log.debug(key + ": no changes to make.")
+                continue
+            #If evaluates false, replace.
+            elif not under[key]:
 
-        #If elements are unique dict.
-        if isinstance(value, dict) and key not in under:
+                log.debug("Property '" + key + "' SET to " + json.dumps(value))
+                if write_log:
+                    diff_log += ("Property '" + key +
+                                              "' SET to " + json.dumps(value) +
+                                              "\n")
+                    log.info("Change written to log")
+            # If (non-zero) dictionary
+            elif isinstance(value, dict):
+                # If dict key exists in both, we need to go deeper.
+                if write_log:
+                    diff_log += ("Inside " + key + "...")
+                log.debug("Inside " + key + "...")
+                node = under.setdefault(key, {})
+                deep_merge(value, node, write_log)
 
-            log.debug("Key Added")
-            #log.debug(key + " :" + value + " ")
-            under[key]=value
-
-        #If element is list (and non unique) append
-        elif isinstance(value, list) and key in under:
-
-            log.debug("Merged Successfully")
-            
-            #For each member of list
-            for thing in value:
-                #Not duplicate
-                if not thing in under[key]:
-                    under[key].append(thing)
-        #No merge needed
-        elif isinstance(value, list) and key not in under:
-
-            log.debug("Merged Successfully")
-            under.update(over)
-
-        #If element is other, replace.      
-        elif not (isinstance(value, list) or isinstance(value, dict)):
-
-            if key not in under:
-                under[key] = value
-            elif under[key] == value:
-                log.debug("No Merge Required")
+            # Lists
+            elif isinstance(value, list):
+                #For each member of list
+                for thing in value:
+                    #Not duplicate
+                    if not thing in under[key]:
+                        under[key].append(thing)
+                        log.debug("Property '" + key + "' appended with '" +
+                                  json.dumps(thing) + "'")
+                        if write_log:
+                            diff_log += ("Property '" + key +
+                                                      "' appended with '" +
+                                                      json.dumps(thing) +
+                                                      "'\n")
+                            log.info("Change written to log")
             else:
-                if value:
-                    log.debug(str(under[key]) + ' replaced with ' + str(value))
-                    under[key] = value
+                # Value replaced
+                log.debug(key + " case 5")
+                under[key] = value
+                log.info("Property '" + key + "' CHANGED from '" + under[key] +
+                         "' to '" + value + "'")
+                if write_log:
+                    diff_log += ("Property '" + key +
+                                              "' CHANGED from '" + under[key] +
+                                              "' to '" + value + "'\n")
+                    log.info("Change written to log")
 
-    return under
+        else:
+            # Set key equal to value
+            under[key] = value
+            log.debug("Property " + key + " SET to " + json.dumps(value))
+            if write_log:
+                diff_log += ("Property " + key + " SET to " +
+                                          json.dumps(value))
+                log.info("Change written to log")
+
+    return diff_log
