@@ -127,39 +127,39 @@ def update_history(licences):
         if key in prev and prev[key]['history']:
             value['history'] = prev[key]['history']
         
-def validate_lic_file(key, value):
+def validate_lic_file(licence_list):
+    for key, value in licence_list.items():
 
-    if value['file_address']:
-        try:
-            statdat = os.stat(value['file_address'])
+        if value['file_address']:
+            try:
+                statdat = os.stat(value['file_address'])
 
-            file_name=value['file_address'].split('/')[-1]
+                file_name=value['file_address'].split('/')[-1]
 
-            owner=getpwuid(statdat.st_uid).pw_name
-            group=getgrgid(statdat.st_gid).gr_name
+                owner=getpwuid(statdat.st_uid).pw_name
+                group=getgrgid(statdat.st_gid).gr_name
 
-            # Check permissions of file
-            if statdat.st_mode == 432:
-                log.error(key + ' file address permissions look weird.')
+                # Check permissions of file
+                if statdat.st_mode == 432:
+                    log.error(key + ' file address permissions look weird.')
 
-            if value['file_group'] and group != value['file_group']:
-                log.warning(key + ' file address group is "' +  group + '", should be "' + value['file_group'] + '".')
+                if value['file_group'] and group != value['file_group']:
+                    log.warning(key + ' file address group is "' +  group + '", should be "' + value['file_group'] + '".')
 
-            if owner != "nesi-apps-admin":
-                log.warning(key + ' file address group is "' +  group + '", should be "nesi-apps-admin".')
+                if owner != "nesi-apps-admin":
+                    log.warning(key + ' file address group is "' +  group + '", should be "nesi-apps-admin".')
 
-            standard_address=("opt/nesi/mahuika/" + value['software'] + "/Licenses/" + value['software'].lower() + "_" + value['lic_type'].lower() + "@" +  value['institution'] + "_" + value['faculty'] + ".lic" )
+                standard_address=("opt/nesi/mahuika/" + value['software'] + "/Licenses/" + value['software'].lower() + "_" + value['lic_type'].lower() + "@" +  value['institution'] + "_" + value['faculty'] + ".lic" )
 
-            if value['file_address'] != standard_address:
-                log.warning('Would be cool if "' + value['file_address'] + '" was "' + standard_address + '", but no biggy.')
+                if value['file_address'] != standard_address:
+                    log.warning('Would be cool if "' + value['file_address'] + '" was "' + standard_address + '", but no biggy.')
 
-        except FileNotFoundError:
-            log.error(key + ' has an invalid file path attached "' + value['file_address'] + '"')
+            except FileNotFoundError:
+                log.error(key + ' has an invalid file path attached "' + value['file_address'] + '"')
 
-    else:
-        log.error(key + ' has no licence file associated.')
-    
-    return
+        else:
+            log.error(key + ' has no licence file associated.')
+        
     
 #def apply_soak(licence_list):
 
@@ -262,20 +262,21 @@ def validate_slurm_tokens(license_list):
         #     log.info("Licence object " + key + " is disabled and will not be evaluated.")
     
 
-
 def main():
 
     # Is correct user
     if os.environ['USER'] != "nesi-apps-admin":
         log.error(
             "COMMAND SHOULD BE RUN AS 'nesi-apps-admin' ELSE LICENCE STATS WONT WORK")
-
+    
+    licence_meta = c.readmake_json('tags/licence_meta.json')
     licence_list = c.readmake_json('licence_list.json')
 
-    for key, value in licence_list.items():
-        validate_lic_file(key, value)
+    c.deep_merge(licence_meta, licence_list)
 
-    
+    validate_lic_file(licence_list)
+
+    lmutil(licence_list)
     #validate_slurm_tokens(licence_list)
     # Licence Stuff
     # slurm_dat = get_slurm_tokens()

@@ -19,10 +19,7 @@ def pull(address):
         log.error("Failed to pull from " + address + " (" +
                   request.status_code + ").")
     return 1
-
-
 #Read file at {path}. If not exist make one with {default} value
-
 
 def readmake_json(path, default={}):
     """Reads and returns JSON file as dictionary, if none exists one will be created with default value."""
@@ -35,7 +32,6 @@ def readmake_json(path, default={}):
     with open(path) as json_file:
         log.info(path + " loaded.")
         return json.load(json_file)
-
 
 def writemake_json(path, outject):
     with open(path, "w+") as json_file:
@@ -61,8 +57,6 @@ def assign_tags(module_dat, tag_field, tags):
                 log.warning(
                     "Error! tag '" + app + "' does not correspond to a application on the platform.")
 
-
-
 def deep_merge(over, under, write_log=False):
     """Deep merges dictionary
     If conflict 'over' has right of way"""
@@ -71,12 +65,10 @@ def deep_merge(over, under, write_log=False):
     # Returns difference if write log true
 
     for key, value in over.items():
-
-        log.debug( json.dumps(under[key]) + " ==> " + json.dumps(value))
-
         if not value:
             log.debug(key + ": no changes to make.")
         elif key in under:
+            log.debug( json.dumps(under[key]) + " ==> " + json.dumps(value))
             # If match, ignore.
 
             if under[key] == value:
