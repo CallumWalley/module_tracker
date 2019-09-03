@@ -38,7 +38,7 @@ def avail_path(machine, module_path):
     log.info("Working... Takes about 100 sec... for some reason")
 
     stdout_full = subprocess.check_output(
-        ("MODULEPATH=" + module_path + "; module -t avail"), stderr=subprocess.STDOUT, shell=True).decode("utf-8")
+        ("MODULEPATH=" + module_path + "; /usr/share/lmod/lmod/libexec/lmod -t avail"), stderr=subprocess.STDOUT, shell=True).decode("utf-8").split('MODULEPATH')[0]
 
     main_dict = {}
     lastApp = ""
@@ -61,7 +61,7 @@ def avail_path(machine, module_path):
 
                 try:
                     data = subprocess.check_output(
-                        "MODULEPATH=" + module_path + "; module -t whatis " + thisApp, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
+                        "MODULEPATH=" + module_path + "; /usr/share/lmod/lmod/libexec/lmod -t whatis " + thisApp, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
 
                 except:
                     log.error("Module whatis for " +
