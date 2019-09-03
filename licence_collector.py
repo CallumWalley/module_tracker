@@ -12,42 +12,13 @@ from grp import getgrgid
 # - SLURM licence token.
 
 # Master object structure.
-day_weighting=0.2
-log = logging.getLogger(__name__)
 
-licence_primitive={"software": "","number": "","institution": "","institution_alias": "","faculty": "","faculty_alias": "","lic_type": "","server_type": "","file_address": "","file_group":"","feature": "","flex_daemon": "","flex_method": "", "poll_period":100 ,"conditions": "", "history":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "enabled": False}
+licence_primitive={"software": "","number": "","institution": "","institution_alias": "","faculty": "","faculty_alias": "","lic_type": "","clusters": [], "server_type": "","file_address": "","file_group":"","feature": "","flex_daemon": "","flex_method": "", "poll_period":100 ,"conditions": "", "history":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "enabled": False}
 flexlm_pattern = 'Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?'.replace(' ', ' +')
 
-# class Lic:
-#     """A simple example class"""
-#     def __init__(self, token):
-#         self.token = token
-
-#     software = ""
-#     number : ""
-#     institution: ""
-#     institution_alias: ""
-#     faculty: ""
-#     faculty_alias: ""
-#     lic_type: ""
-#     server_type: ""
-#     file_address: ""
-#     file_group: ""
-#     feature: ""
-#     flex_daemon: ""
-#     flex_method: ""
-#     poll_period: 100
-#     conditions: ""
-#     history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-#     enabled: False
-
-#     def to_json(self):
-#         return json.dumps(self.__dict__)
-
-#     @classmethod
-#     def from_json(cls, json_str):
-#         json_dict = json.loads(json_str)
-#         return cls(**json_dict)
+# A day is worth this much when compared with previous average
+day_weighting=0.2
+log = logging.getLogger(__name__)
 
 def get_slurm_tokens():
 
@@ -123,28 +94,30 @@ def generate_update(licences):
                 lmutil_obj[value['file_address']].append({'feature':value['feature'], 'licence':key, 'count':0})
     return lmutil_obj
 
-def lmutil(key, value):
+def lmutil(licence_list):
     """Checks number of available licences for all objects passed"""
-    
-    if not os.environ['USER'] == 'nesi-apps-admin':
-        log.warning("LMUTIL for '" + key + "' skipped as user not 'nesi-apps-admin'")
-        return
-        
-    if value['file_address'] and value['feature'] and value['flex_method'] == 'lmutil' :
-        c.log.info("Checking Licence server at " + value['file_address'] + " for '" + value['feature'] + "'." )
-        pattern = flexlm_pattern.replace('APPLICATION_NAME', value['feature'])
-        
-        for line in subprocess.check_output('linx64/lmutil ' + 'lmstat ' + '-f ' + value['feature'] + ' -c ' + value['file_address'], stderr=subprocess.STDOUT, shell=True).decode("utf-8").split('\n'):
-            m = re.match(pattern, line)
-            if m:                
-                hour_index=datetime.datetime.now().hour-1
-                count_lic=float(m.groups()[1])
+    for key, value in licence_list.items():
 
-                # Adjust history value, unless zero then set.
-                value["history"][hour_index] = round(((count_lic*day_weighting) + (value["history"][hour_index]*(1-day_weighting))),2) if value["history"][hour_index] else count_lic
-                log.info("Adjusted mean value for hour " + str(hour_index) + " :" + value["history"][hour_index])
+        if not os.environ['USER'] == 'nesi-apps-admin':
+            log.warning("LMUTIL for '" + key + "' skipped as user not 'nesi-apps-admin'")
+            return
+            
+        if value['file_address'] and value['feature'] and value['flex_method'] == 'lmutil' :
+            c.log.info("Checking Licence server at " + value['file_address'] + " for '" + value['feature'] + "'." )
+            pattern = flexlm_pattern.replace('APPLICATION_NAME', value['feature'])
+            
+            for line in subprocess.check_output('linx64/lmutil ' + 'lmstat ' + '-f ' + value['feature'] + ' -c ' + value['file_address'], stderr=subprocess.STDOUT, shell=True).decode("utf-8").split('\n'):
+                m = re.match(pattern, line)
+                if m:                
+                    hour_index=datetime.datetime.now().hour-1
+                    value['in_use']=float(m.groups()[1])
+                    log.info(value['in_use'] + " licences in use.")
 
-    return count_lic
+                    # Adjust history value, unless zero then set.
+                    value["history"][hour_index] = round(((value['in_use']*day_weighting) + (value["history"][hour_index]*(1-day_weighting))),2) if value["history"][hour_index] else value['in_use']
+                    log.info("Adjusted mean value for hour " + str(hour_index) + " :" + value["history"][hour_index])
+
+    return
 
 def update_history(licences):
     """Gets history data from previous license object"""
@@ -154,7 +127,7 @@ def update_history(licences):
         if key in prev and prev[key]['history']:
             value['history'] = prev[key]['history']
         
-def validate_lic_file(key,value):
+def validate_lic_file(key, value):
 
     if value['file_address']:
         try:
@@ -188,9 +161,9 @@ def validate_lic_file(key,value):
     
     return
     
-# def apply_soak(licence, soak_count):
+#def apply_soak(licence_list):
 
-#     print(subprocess.check_output('scontrol' + 'update' + 'res=LS_' + licence.token  ' licenses=' + soak_count, shell=True).decode("utf-8"))
+   # os.subprocess.check_output('scontrol' + 'update' + 'res=LS_' + licence.token  ' licenses=' + soak_count, shell=True).decode("utf-8"))
 
 
 def attach_lic(licence_dat, module_dat):
@@ -223,35 +196,108 @@ def attach_lic(licence_dat, module_dat):
 #         except Exception as details:
 #             print('scontrol', details)
         
-# #     time.sleep(POLL)
+# #     time.sleep(POLL)    
 
-def main()
+def validate_slurm_tokens(license_list):
+    string_data=subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
+    token_list={}
+
+    for lic_string in string_data.split('\n'):
+
+        log.debug(lic_string)
+
+        lic_string_array=lic_string.split('|')
+        pre_at=lic_string_array[0].split('_')
+        post_at=lic_string_array[1].split('_')
+
+        token=(lic_string_array[0] + "@" + lic_string_array[1])
+        if 'token' not in token_list:
+            token_list[token]={}#deepcopy(licence_primitive)
+            print('not in list')
+
+        token_list[token]['software'] = pre_at[0]
+        token_list[token]['institution'] = post_at[0]
+        token_list[token]['number']=math.floor(int(lic_string_array[3])/2)
+
+        if len(pre_at)>1: 
+            token_list[token]['lic_type'] = pre_at[1]
+
+        if len(post_at)>1:
+            token_list[token]['faculty'] = post_at[1] 
+
+        token_list[token]['server_type']=lic_string_array[5]
+
+        if 'cluster' in token_list[token]:
+            #print('in list')
+
+            token_list[token]['cluster'].append(lic_string_array[6])
+        else:
+            #print('not in list')
+
+            token_list[token]['cluster']=[lic_string_array[6]]
+
+        token_list[token]['percent']=[lic_string_array[7]]
+
+    print(token_list)
+
+    for token_name, licence_properties in license_list.items():
+
+        
+        if token_name in token_list:
+            log.info(token_name + " has asocciated slurm token ")
+            for key, value in token_list[token_name].items():
+                
+                if key == 'percent':
+                    if value != 50:
+                        log.debug("Percent allocated should be 50% (even if not on Maui)")
+                elif value != licence_properties[key]:
+                    log.debug("Slurm token value " + key + " is " + json.dumps(value) + "and should be" +  json.dumps(licence_properties[key]))
+
+
+        else:
+            log.error(token_name + " has NO asocciated slurm token ")
+        
+        # if "enabled" in value and value['enabled']:
+        # else:   
+        #     log.info("Licence object " + key + " is disabled and will not be evaluated.")
+    
+
+
+def main():
 
     # Is correct user
     if os.environ['USER'] != "nesi-apps-admin":
         log.error(
             "COMMAND SHOULD BE RUN AS 'nesi-apps-admin' ELSE LICENCE STATS WONT WORK")
 
+    licence_list = c.readmake_json('licence_list.json')
 
+    for key, value in licence_list.items():
+        validate_lic_file(key, value)
 
-                # Licence Stuff
-    slurm_dat = lc.get_slurm_tokens()
+    
+    #validate_slurm_tokens(licence_list)
+    # Licence Stuff
+    # slurm_dat = get_slurm_tokens()
     # lc.update_overwrites(slurm_dat)
 
-    licence_meta = c.readmake_json('tags/licence_meta.json')
-    c.deep_merge(licence_meta, slurm_dat)
-    licence_list=slurm_dat
+    # licence_meta = c.readmake_json('tags/licence_meta.json')
+    # c.deep_merge(licence_meta, slurm_dat)
+    # licence_list=slurm_dat
 
-    for key, value in licence_list.items():
-        lc.validate_lic_file(key, value)
 
-    for key, value in licence_list.items():
-        lc.lmutil(key, value)
 
-    lc.assign_aliases(licence_list)   # Assign licence aliases if any.
-    lc.update_history(licence_list)   # Loads previous history data.
+    # for key, value in licence_list.items():
+    #     lmutil(key, value)
 
-    # lc.attach_lic(lic_dat, module_dat) # Attach Licence Data to module data.
-        licence_tags = c.readmake_json('tags/licence_tags.json', {"proprietary": []})
-    assign_tags(all_modules, "licence_type", licence_tags)
-    c.writemake_json('licence_list.json', licence_list)
+    # assign_aliases(licence_list)   # Assign licence aliases if any.
+    # update_history(licence_list)   # Loads previous history data.
+
+    # # lc.attach_lic(lic_dat, module_dat) # Attach Licence Data to module data.
+    # licence_tags = c.readmake_json('tags/licence_tags.json', {"proprietary": []})
+    # c.assign_tags(licence_list, "licence_type", licence_tags)
+    # c.writemake_json('licence_list.json', licence_list)
+
+
+main()
+

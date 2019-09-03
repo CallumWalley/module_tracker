@@ -42,6 +42,26 @@ def writemake_json(path, outject):
         json_file.write(json.dumps(outject))
         log.info(path + " updated")
 
+def assign_tags(module_dat, tag_field, tags):
+
+    for tag, apps in tags.items():
+        for app in apps:
+            if app in module_dat:
+                # if tag_field module_dat[app]:
+                    # If list, append
+                if isinstance(module_dat[app][tag_field], list):
+                    if not tag in module_dat[app][tag_field]:
+                        module_dat[app][tag_field].append(tag)
+                        module_dat[app][tag_field].sort()
+                # Else overwrite
+                else:
+                    module_dat[app][tag_field] = tag
+
+            else:
+                log.warning(
+                    "Error! tag '" + app + "' does not correspond to a application on the platform.")
+
+
 
 def deep_merge(over, under, write_log=False):
     """Deep merges dictionary
@@ -52,20 +72,25 @@ def deep_merge(over, under, write_log=False):
 
     for key, value in over.items():
 
-        if key in under:
+        log.debug( json.dumps(under[key]) + " ==> " + json.dumps(value))
+
+        if not value:
+            log.debug(key + ": no changes to make.")
+        elif key in under:
             # If match, ignore.
+
             if under[key] == value:
                 log.debug(key + ": no changes to make.")
-                continue
-            #If evaluates false, replace.
+                #If evaluates false, replace.
             elif not under[key]:
-
+                
                 log.debug("Property '" + key + "' SET to " + json.dumps(value))
                 if write_log:
                     diff_log += ("Property '" + key +
                                               "' SET to " + json.dumps(value) +
                                               "\n")
                     log.info("Change written to log")
+                under[key]=value
             # If (non-zero) dictionary
             elif isinstance(value, dict):
                 # If dict key exists in both, we need to go deeper.
@@ -79,8 +104,7 @@ def deep_merge(over, under, write_log=False):
                 #For each member of list
                 for thing in value:
                     #Not duplicate
-                    if not thing in under[key]:
-                        under[key].append(thing)
+                    if not thing in under[key]:                    
                         log.debug("Property '" + key + "' appended with '" +
                                   json.dumps(thing) + "'")
                         if write_log:
@@ -89,25 +113,24 @@ def deep_merge(over, under, write_log=False):
                                                       json.dumps(thing) +
                                                       "'\n")
                             log.info("Change written to log")
+                        under[key].append(thing)
             else:
                 # Value replaced
-                log.debug(key + " case 5")
-                under[key] = value
-                log.debug("Property '" + key + "' CHANGED from '" + under[key] +
-                         "' to '" + value + "'")
+                log.debug("case 5")
+                log.debug("Property '" + key + "' CHANGED from '" + json.dumps(under[key]) +
+                         "' to '" + json.dumps(value) + "'")
                 if write_log:
                     diff_log += ("Property '" + key +
-                                              "' CHANGED from '" + under[key] +
-                                              "' to '" + value + "'\n")
+                                              "' CHANGED from '" + json.dumps(under[key]) +
+                                              "' to '" + json.dumps(value) + "'\n")
                     log.debug("Change written to log")
-
+                under[key] = value
         else:
             # Set key equal to value
-            under[key] = value
             log.debug("Property " + key + " SET to " + json.dumps(value))
             if write_log:
                 diff_log += ("Property " + key + " SET to " +
                                           json.dumps(value))
                 log.debug("Change written to log")
-
+            under[key] = value
     return diff_log

@@ -95,26 +95,6 @@ def avail_path(machine, module_path):
 
     return main_dict
 
-
-def assign_tags(module_dat, tag_field, tags):
-
-    for tag, apps in tags.items():
-        for app in apps:
-            if app in module_dat:
-                # if tag_field module_dat[app]:
-                    # If list, append
-                if isinstance(module_dat[app][tag_field], list):
-                    if not tag in module_dat[app][tag_field]:
-                        module_dat[app][tag_field].append(tag)
-                        module_dat[app][tag_field].sort()
-                # Else overwrite
-                else:
-                    module_dat[app][tag_field] = tag
-
-            else:
-                log.warning(
-                    "Error! tag '" + app + "' does not correspond to a application on the platform.")
-
 def main():
     # Start
     # Logger setup
@@ -196,7 +176,7 @@ def main():
         ], "visualisation": [], "geology": [], "mathematics": [], "chemistry": [], "language": []})
 
 
-    assign_tags(all_modules, "domains", domain_tags)
+    c.assign_tags(all_modules, "domains", domain_tags)
 
     # Apply Overwrites
     #module_overwrite_dat = c.readmake_json('master_overwrites.json')
