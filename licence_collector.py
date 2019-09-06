@@ -58,9 +58,7 @@ def lmutil(licence_list):
                             if value["day_ave"][hour_index]
                             else value["in_use_real"]
                         )
-                        log.info("Adjusted mean value for hour " + str(hour_index) + " :" + str(value["day_ave"][hour_index]))
-                    else:
-                        log.debug("Failed to fetch feature!")
+                        log.info("Adjusted mean value for hour " + str(hour_index) + " : " + str(value["day_ave"][hour_index]))
 
             except:
                 log.error("Failed to fetch " + key + " for unspecified reason")
@@ -137,14 +135,15 @@ def apply_soak(licence_list):
         default_reservation_string+= " " + key + "=" + str(value)
 
     try:
-        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=" + soak_count
+        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=" + soak_count + "\""
         log.debug(sub_input)
         subprocess.check_output(sub_input, shell=True).decode("utf-8")   
         log.info("Reservation updated successescsfully!")
     except:
         log.error("Failed to update 'licence_soak' attempting to create new reservation.")
         try:
-            subprocess.check_output("scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=" + soak_count, shell=True).decode("utf-8")
+            sub_input="scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=\"" + soak_count + "\""
+            subprocess.check_output(sub_input, shell=True).decode("utf-8")
             log.error("New reservation created successescsfully!")
         except:
             log.error("Failed! Everything failed!")
