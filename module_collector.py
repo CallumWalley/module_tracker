@@ -12,17 +12,13 @@ import common as c
 from copy import deepcopy
 
 # test
-module_primitive = {"description": "", "domains": [], "licence_type": "", "homepage": "", "support": "", "machines": {}}
 
-# Calls  returns value between input strings.
+# ===== Log Stuff =====#
+log = logging.getLogger(__name__)
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+log.info("Starting...")
 
-def get_between(string_full, string_start, string_end):
-
-    # Split between start and end strings.
-    stdout = string_full.split(string_start)[1].split(string_end)[0]
-
-    return stdout
-
+settings = c.readmake_json("module_collector_settings.json", {"remote": "", "token": "", "update": ["mahuika", "maui"]})
 
 def avail_path(machine, module_path):
 
@@ -54,7 +50,7 @@ def avail_path(machine, module_path):
             if lastApp != thisApp:
 
                 # Define dict
-                main_dict[thisApp] = deepcopy(module_primitive)
+                main_dict[thisApp] = deepcopy(settings["default"])
                 main_dict[thisApp]["machines"][machine] = []
 
                 try:
@@ -94,14 +90,7 @@ def avail_path(machine, module_path):
 
 
 def main():
-    # ===== Log Stuff =====#
-    log = logging.getLogger(__name__)
-    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
-    log.info("Starting...")
-
-
     # Read Settings
-    settings = c.readmake_json("module_collector_settings.json", {"remote": "", "token": "", "update": ["mahuika", "maui"]})
     log.info(json.dumps(settings))
 
     # ===== Checks =====#
@@ -121,10 +110,10 @@ def main():
 
         with open("diff_log.txt", "a") as diff_file:
             diff_file.write(
-                "====================="
+                "\n====================="
                 + " Mahuika - "
                 + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + " ===================== \n"
+                + " =====================\n"
                 + diff_mahuika
             )
         log.info("Comparing mahuika modules with cache")
@@ -141,10 +130,10 @@ def main():
         diff_maui = c.deep_merge(maui_modules, maui_modules_cache, True)
         with open("diff_log.txt", "a") as diff_file:
             diff_file.write(
-                "====================="
+                "\n====================="
                 + " Maui     - "
                 + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + " ===================== \n"
+                + " =====================\n"
                 + diff_maui
             )
 
