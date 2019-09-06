@@ -6,51 +6,13 @@ from copy import deepcopy
 from pwd import getpwuid
 from grp import getgrgid
 
-# Three different resources to track.
-# - SLURM licence token.
-
-# Master object structure.
-
-settings = c.readmake_json('licence_collector_settings.json', {"user": "default_user","default_path": "","poll_period": 300})
-
-licence_primitive = {
-    "software_name": "",
-    "institution": "",
-    "institution_alias": "",
-    "faculty": "",
-    "faculty_alias": "",
-    "lic_type": "",
-    "cluster": "",
-    "server_type": "",
-    "file_address": "",
-    "file_group": "",
-    "feature": "",
-    "flex_daemon": "",
-    "flex_method": "lmutil",
-    "conditions": "",
-    "history":[],
-    "history_points": 0,
-    "total": 0,
-    "in_use_real":0,
-    "in_use_modified":0,
-    "buffer_factor":0,
-    "buffer_margin":0,
-    "day_ave": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    "enabled": False
-}
-flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
-
-# A day is worth this much when compared with previous average
-day_weighting = 0.01
-
-
 def instintate_licences(licence_list,licence_meta):
     """Updates overwrite file with primitive of any new licences in dict"""
 
     for licence in licence_meta.keys():
         if not licence in licence_list:
             log.warning(licence + " is new licence. Being added to database wih default values.")
-            licence_list[licence] = deepcopy(licence_primitive)
+            licence_list[licence] = deepcopy(settings["default"])
     #c.writemake_json("tags/licence_meta.json", licence_meta)
 
 def lmutil(licence_list):
@@ -59,29 +21,50 @@ def lmutil(licence_list):
         if value["file_address"] and value["feature"] and value["flex_method"] == "lmutil":
             c.log.info("Checking Licence server at " + value["file_address"] + " for '" + value["feature"] + "'.")
             pattern = flexlm_pattern.replace("APPLICATION_NAME", value["feature"])
-
-            for line in (
-                subprocess.check_output(
-                    "linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"], stderr=subprocess.STDOUT, shell=True
-                )
-                .decode("utf-8")
-                .split("\n")
-            ):
-                m = re.match(pattern, line)
-                if m:
-                    hour_index = dt.datetime.now().hour - 1
-                    value["in_use_real"] = float(m.groups()[1])
-                    log.info(value["in_use_real"] + " licences in use.")
-
-                    # Adjust history value, unless zero then set.
-                    value["day_ave"][hour_index] = (
-                        round(((value["in_use_real"] * day_weighting) + (value["day_ave"][hour_index] * (1 - day_weighting))), 2)
-                        if value["day_ave"][hour_index]
-                        else value["in_use_real"]
+            try:
+                for line in (
+                    subprocess.check_output(
+                        "linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"], stderr=subprocess.STDOUT, shell=True
                     )
-                    log.info("Adjusted mean value for hour " + str(hour_index) + " :" + value["day_ave"][hour_index])
-                else:
-                    log.error("Failed to fetch feature!")
+                    .decode("utf-8")
+                    .split("\n")
+                ):
+                    m = re.match(pattern, line)
+                    if m:
+                        hour_index = dt.datetime.now().hour - 1
+                        value["in_use_real"] = float(m.groups()[1])
+                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use.")
+
+                        # Record to running history 
+                        value["history"].append(value["in_use_real"])
+
+                        # Pop extra array entries
+                        while len(value["history"]) > value["history_points"]
+                            value["history"].pop(0)
+
+                        # Find modified in use value
+                        interesting=max(value["history"])
+                        value["in_use_modified"] = min(max(interesting+value["buffer_constant"], round(interesting*(1+value["buffer_factor"]))), value["total"])
+
+
+                        # Set if unset
+                        if not len(value["day_ave"])==24
+                            value["day_ave"]=[0]*24
+
+                        # Update average
+                        value["day_ave"][hour_index] = (
+                            round(
+                            ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))), 2)
+                            if value["day_ave"][hour_index]
+                            else value["in_use_real"]
+                        )
+                        log.info("Adjusted mean value for hour " + str(hour_index) + " :" + str(value["day_ave"][hour_index]))
+                    else:
+                        log.error("Failed to fetch feature!")
+
+            except:
+                log.error("Failed to fetch " + key + " for unspecified reason")
+
     return
 
 def validate(licence_list, licence_meta):
@@ -178,15 +161,16 @@ def main():
         apply_soak(licence_list)
 
     c.writemake_json('licence_list.json', licence_list)
-
-# Start
-# Logger setup
-
 # ===== Log Stuff =====#
 log = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 log.info("Starting...")
 
+settings = c.readmake_json('licence_collector_settings.json')
+
+flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
+
+# Start
 c.dummy_checks()
 
 log.info(json.dumps(settings))
