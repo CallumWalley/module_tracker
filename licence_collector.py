@@ -116,7 +116,7 @@ def apply_soak(licence_list):
 
     for key, value in licence_list.items():
         if value["enabled"]:
-            soak_count += (key + ":" + str(value["in_use_modified"]) + ",")  
+            soak_count += (key + ":" + round(str(value["in_use_modified"]) + ","))
         # Does nothing atm, idea is be able to set max total in use on cluster.
         #value.max_use
 
