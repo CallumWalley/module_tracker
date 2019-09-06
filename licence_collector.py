@@ -135,7 +135,7 @@ def apply_soak(licence_list):
         default_reservation_string+= " " + key + "=" + str(value)
 
     try:
-        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=" + soak_count + "\""
+        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=\"" + soak_count + "\""
         log.debug(sub_input)
         subprocess.check_output(sub_input, shell=True).decode("utf-8")   
         log.info("Reservation updated successescsfully!")
@@ -143,6 +143,7 @@ def apply_soak(licence_list):
         log.error("Failed to update 'licence_soak' attempting to create new reservation.")
         try:
             sub_input="scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=\"" + soak_count + "\""
+            log.debug(sub_input)
             subprocess.check_output(sub_input, shell=True).decode("utf-8")
             log.error("New reservation created successescsfully!")
         except:
