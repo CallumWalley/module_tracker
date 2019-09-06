@@ -126,3 +126,18 @@ def deep_merge(over, under, write_log=False):
                 log.debug("Change written to log")
             under[key] = value
     return diff_log
+
+def dummy_checks():
+        # Folders exist?
+    if not os.path.exists("meta"):
+        log.warning("Creating missing directory 'meta'")
+        os.makedirs("meta")
+    if not os.path.exists("cache"):
+        log.warning("Creating missing directory 'cache'")
+        os.makedirs("cache")
+
+    # # On mahuika?
+    # if not (socket.gethostname().startswith("mahuika")):
+    #     log.error("Currently must be run from Mahuika. Because I am lazy.")
+    #     return 1
+
