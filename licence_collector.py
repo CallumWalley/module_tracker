@@ -39,7 +39,7 @@ def lmutil(licence_list):
                         value["history"].append(value["in_use_real"])
 
                         # Pop extra array entries
-                        while len(value["history"]) > value["history_points"]
+                        while len(value["history"]) > value["history_points"] :
                             value["history"].pop(0)
 
                         # Find modified in use value
@@ -48,7 +48,7 @@ def lmutil(licence_list):
 
 
                         # Set if unset
-                        if not len(value["day_ave"])==24
+                        if not len(value["day_ave"])==24 :
                             value["day_ave"]=[0]*24
 
                         # Update average
@@ -60,7 +60,7 @@ def lmutil(licence_list):
                         )
                         log.info("Adjusted mean value for hour " + str(hour_index) + " :" + str(value["day_ave"][hour_index]))
                     else:
-                        log.error("Failed to fetch feature!")
+                        log.debug("Failed to fetch feature!")
 
             except:
                 log.error("Failed to fetch " + key + " for unspecified reason")
@@ -118,7 +118,7 @@ def apply_soak(licence_list):
 
     for key, value in licence_list.items():
         if value["enabled"]:
-            soak_count += key + ":" + value["in_use_modified"] + ","       
+            soak_count += (key + ":" + str(value["in_use_modified"]) + ",")  
         # Does nothing atm, idea is be able to set max total in use on cluster.
         #value.max_use
 
@@ -157,8 +157,10 @@ def main():
         log.warning("LMUTIL skipped as user not '" + settings['user'] + "'")
         log.warning("APPLY_SOAK skipped as user not '" + settings['user'] + "'")
     else:
-        lmutil(licence_list)
         apply_soak(licence_list)
+        lmutil(licence_list)
+
+    
 
     c.writemake_json('licence_list.json', licence_list)
 # ===== Log Stuff =====#
