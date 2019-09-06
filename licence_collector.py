@@ -123,7 +123,7 @@ def apply_soak(licence_list):
         #value.max_use
 
     cluster = "mahuika"
-    res_name="licence_soak"
+    res_name="licence_soak2"
     # starts in 1 minute, ends in 1 year.
     default_reservation = {
         "StartTime": (dt.datetime.now() + dt.timedelta(seconds=10)).strftime(("%Y-%m-%dT%H:%M:%S")),
@@ -137,13 +137,17 @@ def apply_soak(licence_list):
         default_reservation_string+= " " + key + "=" + str(value)
 
     try:
-        subprocess.check_output("scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=" + soak_count, shell=True).decode("utf-8")
-        log.error("Reservation updated successescsfully!")
+        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=" + soak_count
+        log.debug(sub_input)
+        subprocess.check_output(sub_input, shell=True).decode("utf-8")   
+        log.info("Reservation updated successescsfully!")
     except:
         log.error("Failed to update 'licence_soak' attempting to create new reservation.")
-        subprocess.check_output("scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=" + soak_count, shell=True).decode("utf-8")
-        log.error("New reservation created successescsfully!")
-
+        try:
+            subprocess.check_output("scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=" + soak_count, shell=True).decode("utf-8")
+            log.error("New reservation created successescsfully!")
+        except:
+            log.error("Failed! Everything failed!")
 def main():
     # Checks all licences in "meta" are in "list"
     instintate_licences(licence_list, licence_meta)
