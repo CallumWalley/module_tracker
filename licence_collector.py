@@ -33,56 +33,56 @@ def lmutil(licence_list):
         # if value["flex_method"] == "lmutil":
         #     return
         features=[]
-        try:
-            for line in (c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]).split("\n")):  
-                m = re.match(pattern, line)
-                if m:
-                    features.append(m.groupdict())
-            found=False
-            for feature in features:
-                if feature["feature_name"] == value["feature"]:
-                    found=True
-                    hour_index = dt.datetime.now().hour - 1
-                    value["in_use_real"] = feature["in_use_real"]
 
-                    if value["total"] != feature["total"]:
-                        log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
-                        value["total"] = feature["total"]
+        for line in (c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]).split("\n")):  
+            m = re.match(pattern, line)
+            if m:
+                features.append(m.groupdict())
+        found=False
+        for feature in features:
+            if feature["feature_name"] == value["feature"]:
+                found=True
+                hour_index = dt.datetime.now().hour - 1
+                value["in_use_real"] = feature["in_use_real"]
 
-                    # Record to running history
-                    value["history"].append(value["in_use_real"])
+                if value["total"] != feature["total"]:
+                    log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
+                    value["total"] = feature["total"]
 
-                    # Pop extra array entries
-                    while len(value["history"]) > value["history_points"]:
-                        value["history"].pop(0)
+                # Record to running history
+                value["history"].append(value["in_use_real"])
 
-                    # Find modified in use value
-                    interesting = max(value["history"])
-                    value["in_use_modified"] = min(
-                        max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
+                # Pop extra array entries
+                while len(value["history"]) > value["history_points"]:
+                    value["history"].pop(0)
+
+                # Find modified in use value
+                interesting = max(value["history"])
+                value["in_use_modified"] = min(
+                    max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
+                )
+
+                # Set if unset
+                if not len(value["day_ave"]) == 24:
+                    value["day_ave"] = [0] * 24
+
+                # Update average
+                value["day_ave"][hour_index] = (
+                    round(
+                        ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))),
+                        2,
                     )
+                    if value["day_ave"][hour_index]
+                    else value["in_use_real"]
+                )
+                log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
+            else:
+                log.info("Untracked Feature " + feature["feature_name"] + ": " + feature["in_use_real"] +" of " + feature["total"] + "in use.")
 
-                    # Set if unset
-                    if not len(value["day_ave"]) == 24:
-                        value["day_ave"] = [0] * 24
-
-                    # Update average
-                    value["day_ave"][hour_index] = (
-                        round(
-                            ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))),
-                            2,
-                        )
-                        if value["day_ave"][hour_index]
-                        else value["in_use_real"]
-                    )
-                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
-                else:
-                    log.info("Untracked Feature " + feature["feature_name"] + ": " + feature["in_use_real"] +" of " + feature["total"] + "in use.")
-
-            if not found:
-                log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
-        except:
-            log.error("Failed to fetch " + key + " for unspecified reason")
+        if not found:
+            log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
+        # except:
+        #     log.error("Failed to fetch " + key + " for unspecified reason")
 
     return
 
