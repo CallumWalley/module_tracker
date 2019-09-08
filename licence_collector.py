@@ -17,6 +17,9 @@ def instintate_licences(licence_list,licence_meta):
 
 def lmutil(licence_list):
     """Checks total of available licences for all objects passed"""
+
+    flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
+
     for key, value in licence_list.items():
         if value["file_address"] and value["feature"] and value["flex_method"] == "lmutil":
             c.log.info("Checking Licence server at " + value["file_address"] + " for '" + value["feature"] + "'.")
@@ -29,11 +32,11 @@ def lmutil(licence_list):
                     .decode("utf-8")
                     .split("\n")
                 ):
+                    log.debug(line)
                     m = re.match(pattern, line)
                     if m:
                         hour_index = dt.datetime.now().hour - 1
                         value["in_use_real"] = float(m.groups()[1])
-                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use.")
 
                         # Record to running history 
                         value["history"].append(value["in_use_real"])
@@ -58,7 +61,9 @@ def lmutil(licence_list):
                             if value["day_ave"][hour_index]
                             else value["in_use_real"]
                         )
-                        log.info("Adjusted mean value for hour " + str(hour_index) + " : " + str(value["day_ave"][hour_index]))
+                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index])
+                    else:
+                        log.error("Feature '" + value["feature"] + "' not found on server.")
 
             except:
                 log.error("Failed to fetch " + key + " for unspecified reason")
@@ -66,9 +71,17 @@ def lmutil(licence_list):
     return
 
 def validate(licence_list, licence_meta):
+    """Checks for inconsistancies"""
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
             if value["file_address"]:
+                
+                #value['institution']+fac
+                #value['software']
+                fac = "_" + value["faculty"] if value["faculty"] else ""
+
+                standard_address = f'opt/nesi   /mahuika/{}/Licenses/{}.lic'
+                print(standard_address)    
                 try:
                     statdat = os.stat(value["file_address"])
                     file_name = value["file_address"].split("/")[-1]
@@ -84,21 +97,7 @@ def validate(licence_list, licence_meta):
                         log.warning(key + ' file address group is "' + group + '", should be "' + value["file_group"] + '".')
 
                     if owner != settings['user']:
-                        log.warning(key + " file address group is '" + group + "', should be '" + settings['user'] + "'.")
-
-                    standard_address = (
-                        "opt/nesi/mahuika/"
-                        + value["software"]
-                        + "/Licenses/"
-                        + value["software"].lower()
-                        + "_"
-                        + value["lic_type"].lower()
-                        + "@"
-                        + value["institution"]
-                        + "_"
-                        + value["faculty"]
-                        + ".lic"
-                    )
+                        log.warning(key + " file address owner is '" + owner + "', should be '" + settings['user'] + "'.")
 
                     if value["file_address"] != standard_address:
                         log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '", but no biggy.')
@@ -148,6 +147,7 @@ def apply_soak(licence_list):
             log.error("New reservation created successescsfully!")
         except:
             log.error("Failed! Everything failed!")
+
 def main():
     # Checks all licences in "meta" are in "list"
     instintate_licences(licence_list, licence_meta)
@@ -167,16 +167,31 @@ def main():
     
 
     c.writemake_json('licence_list.json', licence_list)
+
+
+
 # ===== Log Stuff =====#
+log_path="warn.logs" 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+log.setLevel(logging.DEBUG)
+
+# Log Info to console USE ENV VARIABLE LOGLEVEL TO OVERRIDE
+console_logs = logging.StreamHandler()
+console_logs.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
+console_logs.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+log.addHandler(console_logs)
+
+# Log warnings and above to text file.
+file_logs = logging.FileHandler(log_path)
+file_logs.setLevel("WARNING")
+file_logs.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+log.addHandler(file_logs)
+
+
 log.info("Starting...")
 
 settings = c.readmake_json('licence_collector_settings.json')
 
-flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
-
-# Start
 c.dummy_checks()
 
 log.info(json.dumps(settings))

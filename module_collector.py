@@ -107,15 +107,15 @@ def main():
 
         # Compares new object with cached object and logs differences.
         diff_mahuika = c.deep_merge(mahuika_modules, mahuika_modules_cache, True)
-
-        with open("diff_log.txt", "a") as diff_file:
-            diff_file.write(
-                "\n====================="
-                + " Mahuika - "
-                + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + " =====================\n"
-                + diff_mahuika
-            )
+        if len(diff_mahuika)>0 :
+            with open("diff_log.txt", "a") as diff_file:
+                diff_file.write(
+                    "\n====================="
+                    + " Mahuika - "
+                    + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    + " =====================\n"
+                    + diff_mahuika
+                )
         log.info("Comparing mahuika modules with cache")
 
         # Update cache
@@ -128,14 +128,15 @@ def main():
 
         # Compares new object with cached object and logs differences.
         diff_maui = c.deep_merge(maui_modules, maui_modules_cache, True)
-        with open("diff_log.txt", "a") as diff_file:
-            diff_file.write(
-                "\n====================="
-                + " Maui     - "
-                + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + " =====================\n"
-                + diff_maui
-            )
+        if len(diff_maui)>0 :
+            with open("diff_log.txt", "a") as diff_file:
+                diff_file.write(
+                    "\n====================="
+                    + " Maui     - "
+                    + datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    + " =====================\n"
+                    + diff_maui
+                )
 
         log.info("Comparing maui modules with cache")
 
