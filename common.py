@@ -3,6 +3,7 @@ import json
 import requests
 import logging
 import datetime
+import subprocess
 log = logging.getLogger(__name__)
 
 def pull(address):
@@ -140,4 +141,11 @@ def dummy_checks():
     # if not (socket.gethostname().startswith("mahuika")):
     #     log.error("Currently must be run from Mahuika. Because I am lazy.")
     #     return 1
+def shell(input_string):
+    log.debug("Calling shell command '" + input_string + "'")
 
+    try:
+        return subprocess.check_output(input_string, stderr=subprocess.STDOUT, shell=True).strip()
+
+    except Exception as details:
+        log.error(details)

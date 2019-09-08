@@ -1,4 +1,4 @@
-import subprocess, math, os, stat, re, json, logging, time
+import math, os, stat, re, json, logging, time
 import datetime as dt
 
 import common as c
@@ -6,11 +6,21 @@ from copy import deepcopy
 from pwd import getpwuid
 from grp import getgrgid
 
+#=== TO DO ===#
+# Make licences on same daemon use same request.
+# Check other properties
+# Maui/mahuika
+
 
 def lmutil(licence_list):
     """Checks total of available licences for all objects passed"""
+    # This is a mess. Tidy.
+    pattern="Users of (?P<feature_name>\w*?):  \(Total of (?P<in_use_real>\d*?) licenses issued;  Total of (?P<total>\d*?) licenses in use\)"
+    # lmutil_list=[]
+    # for key, value in licence_list.items():
 
-    flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
+
+    #     lmutil_list.append={"path":value["address"]}
 
     for key, value in licence_list.items():
     #     if not value["file_address"]:
@@ -22,22 +32,22 @@ def lmutil(licence_list):
             
         # if value["flex_method"] == "lmutil":
         #     return
-
-        c.log.info("Checking Licence server at " + value["file_address"] + " for '" + value["feature"] + "'.")
-        pattern = flexlm_pattern.replace("APPLICATION_NAME", value["feature"])
+        features=[]
         try:
-            for line in (
-                subprocess.check_output(
-                    "linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"], stderr=subprocess.STDOUT, shell=True
-                )
-                .decode("utf-8")
-                .split("\n")
-            ):
-                log.debug(line)
+            for line in (c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]).split("\n")):  
                 m = re.match(pattern, line)
                 if m:
+                    features.append(m.groupdict())
+            found=False
+            for feature in features:
+                if feature["feature_name"] == value["feature"]:
+                    found=True
                     hour_index = dt.datetime.now().hour - 1
-                    value["in_use_real"] = float(m.groups()[1])
+                    value["in_use_real"] = feature["in_use_real"]
+
+                    if value["total"] != feature["total"]:
+                        log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
+                        value["total"] = feature["total"]
 
                     # Record to running history
                     value["history"].append(value["in_use_real"])
@@ -66,10 +76,11 @@ def lmutil(licence_list):
                         else value["in_use_real"]
                     )
                     log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
-                    break
-            else:
-                log.error("Feature '" + value["feature"] + "' not found on server.")
+                else:
+                    log.info("Untracked Feature " + feature["feature_name"] + ": " + feature["in_use_real"] +" of " + feature["total"] + "in use.")
 
+            if not found:
+                log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
         except:
             log.error("Failed to fetch " + key + " for unspecified reason")
 
@@ -85,15 +96,9 @@ def validate(licence_list, licence_meta):
             log.warning(licence + " is new licence. Being added to database wih default values.")
             licence_list[licence] = deepcopy(settings["default"])
 
-    #ideal_values = deepcopy(settings["default"])
-
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
-            if value["file_address"]:
-
-                filename_end = "_" + value["faculty"] if value["faculty"] else ""
-
-                standard_address = "opt/nesi/mahuika/" + value["software_name"] + "/Licenses/" + value["institution"] + filename_end + ".lic"
+            if value["file_address"]:                
                 try:
                     statdat = os.stat(value["file_address"])
                     file_name = value["file_address"].split("/")[-1]
@@ -106,13 +111,15 @@ def validate(licence_list, licence_meta):
                         log.error(key + " file address permissions look weird.")
 
                     if value["file_group"] and group != value["file_group"]:
-                        log.error(key + ' file address group is "' + group + '", should be "' + value["file_group"] + '".')
+                        log.error(value["file_address"] + ' group is "' + group + '", should be "' + value["file_group"] + '".')
 
                     if owner != settings["user"]:
-                        log.error(key + " file address owner is '" + owner + "', should be '" + settings["user"] + "'.")
-
-                    if value["file_address"] != standard_address:
-                        log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '", but no biggy.')
+                        log.error(value["file_address"] + " owner is '" + owner + "', should be '" + settings["user"] + "'.")
+                    
+                    filename_end = "_" + value["faculty"] if value["faculty"] else ""
+                    standard_address = "opt/nesi/mahuika/" + value["software_name"] + "/Licenses/" + value["institution"] + filename_end + ".lic"             
+                    if value["file_address"] != standard_address and value["software_name"] and value["institution"]:
+                        log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '".')
 
                 except:
                     log.error(key + ' has an invalid file path attached "' + value["file_address"] + '"')
@@ -121,8 +128,8 @@ def validate(licence_list, licence_meta):
 
     def _tokens(license_list):
         try:
-            string_data = (
-                subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
+            string_data = c.shell(
+                "sacctmgr -pns show resource withcluster"
             )
 
             active_token_list = []
@@ -135,10 +142,25 @@ def validate(licence_list, licence_meta):
                 post_at = lic_string_array[1].split("_")
 
                 active_token_list.append(lic_string_array[0] + "@" + lic_string_array[1])
+            for key, value in licence_list.items():
+                if key not in active_token_list:
+                    log.error("'" + key + "' does not have a token in slurm database!")
 
-            for licence in licence_list.keys():
-                if licence not in active_token_list:
-                    log.error("'" + licence + "' does not have a token in slurm database!")
+                    if value["institution"] and value["total"] and value["software_name"] and  value["cluster"]:
+
+                        name = value["software_name"] + "_" + value["lic_type"] if value["lic_type"] else value["software_name"]
+                        server = value["institution"] + "_" + value["faculty"] if value["faculty"] else value["institution"]
+                        
+                        log.error("Attempting to add ")
+
+                        c.shell("sacctmgr add resource Name=" + name.lower() + "Server=" + server.lower() + "Count=" + round(value["total"]*2) + "type=License cluster=" + value["cluster"] +  "percentallowed=50")
+                    
+                    else:
+
+                        log.error("Must have 'instituiton, software_name, cluster, total' set in order to generate SLURM token.")
+
+
+
         except:
             log.error("Failed to check SLURM tokens")
 
@@ -157,7 +179,7 @@ def apply_soak(licence_list):
         # value.max_use
 
     cluster = "mahuika"
-    res_name = "licence_soak2"
+    res_name = "licence_soak"
     # starts in 1 minute, ends in 1 year.
     default_reservation = {
         "StartTime": (dt.datetime.now() + dt.timedelta(seconds=10)).strftime(("%Y-%m-%dT%H:%M:%S")),
@@ -186,6 +208,8 @@ def apply_soak(licence_list):
             log.error("Failed! Everything failed!")
 
 
+
+
 def main():
     # Checks all licences in "meta" are in "list"
 
@@ -198,9 +222,9 @@ def main():
         log.warning("LMUTIL skipped as user not '" + settings["user"] + "'")
         log.warning("APPLY_SOAK skipped as user not '" + settings["user"] + "'")
     else:
-        lmutil(licence_list)
-
         apply_soak(licence_list)
+
+    lmutil(licence_list)
 
     c.writemake_json("licence_list.json", licence_list)
 
