@@ -85,7 +85,7 @@ def validate(licence_list, licence_meta):
             log.warning(licence + " is new licence. Being added to database wih default values.")
             licence_list[licence] = deepcopy(settings["default"])
 
-    ideal_values = deepcopy(settings["default"])
+    #ideal_values = deepcopy(settings["default"])
 
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
