@@ -82,7 +82,7 @@ def lmutil(licence_list):
                 )
                 log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
             else:
-                log.info("Untracked Feature " + feature["feature_name"] + ": " + feature["in_use_real"] +" of " + feature["total"] + "in use.")
+                log.info("Untracked Feature " + feature["feature_name"] + ": " + (feature["in_use_real"]) +" of " + (feature["total"]) + "in use.")
 
         if not found:
             log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
