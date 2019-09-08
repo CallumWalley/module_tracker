@@ -75,13 +75,11 @@ def validate(licence_list, licence_meta):
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
             if value["file_address"]:
-                
-                #value['institution']+fac
-                #value['software']
-                fac = "_" + value["faculty"] if value["faculty"] else ""
 
-                standard_address = f'opt/nesi   /mahuika/{}/Licenses/{}.lic'
-                print(standard_address)    
+
+                filename_end = "_" + value["faculty"] if value["faculty"] else ""
+
+                standard_address = 'opt/nesi/mahuika/' + value["software_name"] + '/Licenses/' + value["institution"] + filename_end + '.lic'
                 try:
                     statdat = os.stat(value["file_address"])
                     file_name = value["file_address"].split("/")[-1]
@@ -154,8 +152,8 @@ def main():
 
     # Updates "list" with "meta" properties.
     c.deep_merge(licence_meta, licence_list)
-    # 
-    validate(licence_meta, licence_list)
+
+    validate(licence_list, licence_meta)
 
     if not os.environ["USER"] == settings['user']:
         log.warning("LMUTIL skipped as user not '" + settings['user'] + "'")
