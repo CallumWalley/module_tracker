@@ -6,15 +6,6 @@ from copy import deepcopy
 from pwd import getpwuid
 from grp import getgrgid
 
-def instintate_licences(licence_list,licence_meta):
-    """Updates overwrite file with primitive of any new licences in dict"""
-
-    for licence in licence_meta.keys():
-        if not licence in licence_list:
-            log.warning(licence + " is new licence. Being added to database wih default values.")
-            licence_list[licence] = deepcopy(settings["default"])
-    #c.writemake_json("tags/licence_meta.json", licence_meta)
-
 def lmutil(licence_list):
     """Checks total of available licences for all objects passed"""
 
@@ -62,8 +53,9 @@ def lmutil(licence_list):
                             else value["in_use_real"]
                         )
                         log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
-                    else:
-                        log.debug("Feature '" + value["feature"] + "' not found on server.")
+                        break
+                else:
+                    log.error("Feature '" + value["feature"] + "' not found on server.")
 
             except:
                 log.error("Failed to fetch " + key + " for unspecified reason")
@@ -72,6 +64,15 @@ def lmutil(licence_list):
 
 def validate(licence_list, licence_meta):
     """Checks for inconsistancies"""
+    
+    # Adds if licence exists in meta but not list
+    for licence in licence_meta.keys():
+        if not licence in licence_list:
+            log.warning(licence + " is new licence. Being added to database wih default values.")
+            licence_list[licence] = deepcopy(settings["default"])
+
+    ideal_values=deepcopy(settings["default"])
+
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
             if value["file_address"]:
@@ -104,8 +105,33 @@ def validate(licence_list, licence_meta):
                     log.error(key + ' has an invalid file path attached "' + value["file_address"] + '"')
             else:
                 log.error(key + " has no licence file associated.")
+   
+    def _tokens(license_list):
+        try:
+            string_data = subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
 
+
+            active_token_list=[]
+            for lic_string in string_data.split("\n"):
+
+                log.debug(lic_string)
+
+                lic_string_array = lic_string.split("|")
+                pre_at = lic_string_array[0].split("_")
+                post_at = lic_string_array[1].split("_")
+
+                active_token_list.append(lic_string_array[0] + "@" + lic_string_array[1])
+
+            for licence in licence_list.keys():
+                if licence not in active_token_list:
+                    log.error("'" + licence + "' does not have a token in slurm database!")
+        except:
+            log.error("Failed to check SLURM tokens")
+
+   
     _address(licence_list, licence_meta)
+    _tokens(licence_list)
+
 
 def apply_soak(licence_list):
 
@@ -148,12 +174,11 @@ def apply_soak(licence_list):
 
 def main():
     # Checks all licences in "meta" are in "list"
-    instintate_licences(licence_list, licence_meta)
 
     # Updates "list" with "meta" properties.
-    c.deep_merge(licence_meta, licence_list)
 
     validate(licence_list, licence_meta)
+    c.deep_merge(licence_meta, licence_list)
 
     if not os.environ["USER"] == settings['user']:
         log.warning("LMUTIL skipped as user not '" + settings['user'] + "'")
@@ -161,8 +186,6 @@ def main():
     else:
         apply_soak(licence_list)
         lmutil(licence_list)
-
-    
 
     c.writemake_json('licence_list.json', licence_list)
 
@@ -314,3 +337,44 @@ while 1:
 #         if value["faculty"] in aliases["fac"]:
 #             value["faculty_alias"] = aliases["fac"][value["faculty"]]
 
+#   string_data = subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
+
+#         for lic_string in string_data.split("\n"):
+
+#             log.debug(lic_string)
+
+#             lic_string_array = lic_string.split("|")
+#             pre_at = lic_string_array[0].split("_")
+#             post_at = lic_string_array[1].split("_")
+
+#             token = lic_string_array[0] + "@" + lic_string_array[1]
+#             if "token" not in token_list:
+#                 token_list[token] = {}  # deepcopy(licence_primitive)
+#                 log.error()
+
+#             token_list[token]["software"] = pre_at[0]
+#             token_list[token]["institution"] = post_at[0]
+#             token_list[token]["total"] = math.floor(int(lic_string_array[3]) / 2)
+
+#             if len(pre_at) > 1:
+#                 token_list[token]["lic_type"] = pre_at[1]
+
+#             if len(post_at) > 1:
+#                 token_list[token]["faculty"] = post_at[1]
+
+#             token_list[token]["server_type"] = lic_string_array[5]
+
+#             if "cluster" in token_list[token]:
+#                 # print('in list')
+
+#                 token_list[token]["cluster"].append(lic_string_array[6])
+#             else:
+#                 # print('not in list')
+
+#                 token_list[token]["cluster"] = [lic_string_array[6]]
+
+#             token_list[token]["percent"] = [lic_string_array[7]]
+
+#         print(token_list)
+#     except:
+#         log.error("Failed to check SLURM tokens")
