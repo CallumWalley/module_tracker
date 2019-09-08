@@ -63,7 +63,7 @@ def lmutil(licence_list):
                         )
                         log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
                     else:
-                        log.error("Feature '" + value["feature"] + "' not found on server.")
+                        log.debug("Feature '" + value["feature"] + "' not found on server.")
 
             except:
                 log.error("Failed to fetch " + key + " for unspecified reason")
