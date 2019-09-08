@@ -6,81 +6,94 @@ from copy import deepcopy
 from pwd import getpwuid
 from grp import getgrgid
 
+
 def lmutil(licence_list):
     """Checks total of available licences for all objects passed"""
 
     flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
 
-    for key, value in licence_list.items():
-        if value["file_address"] and value["feature"] and value["flex_method"] == "lmutil":
-            c.log.info("Checking Licence server at " + value["file_address"] + " for '" + value["feature"] + "'.")
-            pattern = flexlm_pattern.replace("APPLICATION_NAME", value["feature"])
-            try:
-                for line in (
-                    subprocess.check_output(
-                        "linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"], stderr=subprocess.STDOUT, shell=True
+    # for key, value in licence_list.items():
+    #     if not value["file_address"]:
+    #         return
+            
+        # if not value["feature"]: 
+        #     log.error(key + " must have feature specified in order to check with LMUTIL")
+        #     return          
+            
+        # if value["flex_method"] == "lmutil":
+        #     return
+
+        c.log.info("Checking Licence server at " + value["file_address"] + " for '" + value["feature"] + "'.")
+        pattern = flexlm_pattern.replace("APPLICATION_NAME", value["feature"])
+        try:
+            for line in (
+                subprocess.check_output(
+                    "linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"], stderr=subprocess.STDOUT, shell=True
+                )
+                .decode("utf-8")
+                .split("\n")
+            ):
+                log.debug(line)
+                m = re.match(pattern, line)
+                if m:
+                    hour_index = dt.datetime.now().hour - 1
+                    value["in_use_real"] = float(m.groups()[1])
+
+                    # Record to running history
+                    value["history"].append(value["in_use_real"])
+
+                    # Pop extra array entries
+                    while len(value["history"]) > value["history_points"]:
+                        value["history"].pop(0)
+
+                    # Find modified in use value
+                    interesting = max(value["history"])
+                    value["in_use_modified"] = min(
+                        max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
                     )
-                    .decode("utf-8")
-                    .split("\n")
-                ):
-                    log.debug(line)
-                    m = re.match(pattern, line)
-                    if m:
-                        hour_index = dt.datetime.now().hour - 1
-                        value["in_use_real"] = float(m.groups()[1])
 
-                        # Record to running history 
-                        value["history"].append(value["in_use_real"])
+                    # Set if unset
+                    if not len(value["day_ave"]) == 24:
+                        value["day_ave"] = [0] * 24
 
-                        # Pop extra array entries
-                        while len(value["history"]) > value["history_points"] :
-                            value["history"].pop(0)
-
-                        # Find modified in use value
-                        interesting=max(value["history"])
-                        value["in_use_modified"] = min(max(interesting+value["buffer_constant"], round(interesting*(1+value["buffer_factor"]))), value["total"])
-
-
-                        # Set if unset
-                        if not len(value["day_ave"])==24 :
-                            value["day_ave"]=[0]*24
-
-                        # Update average
-                        value["day_ave"][hour_index] = (
-                            round(
-                            ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))), 2)
-                            if value["day_ave"][hour_index]
-                            else value["in_use_real"]
+                    # Update average
+                    value["day_ave"][hour_index] = (
+                        round(
+                            ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))),
+                            2,
                         )
-                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
-                        break
-                else:
-                    log.error("Feature '" + value["feature"] + "' not found on server.")
+                        if value["day_ave"][hour_index]
+                        else value["in_use_real"]
+                    )
+                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
+                    break
+            else:
+                log.error("Feature '" + value["feature"] + "' not found on server.")
 
-            except:
-                log.error("Failed to fetch " + key + " for unspecified reason")
+        except:
+            log.error("Failed to fetch " + key + " for unspecified reason")
 
     return
 
+
 def validate(licence_list, licence_meta):
     """Checks for inconsistancies"""
-    
+
     # Adds if licence exists in meta but not list
     for licence in licence_meta.keys():
         if not licence in licence_list:
             log.warning(licence + " is new licence. Being added to database wih default values.")
             licence_list[licence] = deepcopy(settings["default"])
 
-    ideal_values=deepcopy(settings["default"])
+    ideal_values = deepcopy(settings["default"])
 
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
             if value["file_address"]:
 
-
                 filename_end = "_" + value["faculty"] if value["faculty"] else ""
 
-                standard_address = 'opt/nesi/mahuika/' + value["software_name"] + '/Licenses/' + value["institution"] + filename_end + '.lic'
+                standard_address = "opt/nesi/mahuika/" + value["software_name"] + "/Licenses/" + value["institution"] + filename_end + ".lic"
                 try:
                     statdat = os.stat(value["file_address"])
                     file_name = value["file_address"].split("/")[-1]
@@ -93,10 +106,10 @@ def validate(licence_list, licence_meta):
                         log.error(key + " file address permissions look weird.")
 
                     if value["file_group"] and group != value["file_group"]:
-                        log.warning(key + ' file address group is "' + group + '", should be "' + value["file_group"] + '".')
+                        log.error(key + ' file address group is "' + group + '", should be "' + value["file_group"] + '".')
 
-                    if owner != settings['user']:
-                        log.warning(key + " file address owner is '" + owner + "', should be '" + settings['user'] + "'.")
+                    if owner != settings["user"]:
+                        log.error(key + " file address owner is '" + owner + "', should be '" + settings["user"] + "'.")
 
                     if value["file_address"] != standard_address:
                         log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '", but no biggy.')
@@ -105,13 +118,14 @@ def validate(licence_list, licence_meta):
                     log.error(key + ' has an invalid file path attached "' + value["file_address"] + '"')
             else:
                 log.error(key + " has no licence file associated.")
-   
+
     def _tokens(license_list):
         try:
-            string_data = subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
+            string_data = (
+                subprocess.check_output("sacctmgr -pns show resource withcluster", stderr=subprocess.STDOUT, shell=True).decode("utf-8").strip()
+            )
 
-
-            active_token_list=[]
+            active_token_list = []
             for lic_string in string_data.split("\n"):
 
                 log.debug(lic_string)
@@ -128,23 +142,22 @@ def validate(licence_list, licence_meta):
         except:
             log.error("Failed to check SLURM tokens")
 
-   
     _address(licence_list, licence_meta)
     _tokens(licence_list)
 
 
 def apply_soak(licence_list):
 
-    soak_count=""
+    soak_count = ""
 
     for key, value in licence_list.items():
         if value["enabled"]:
-            soak_count += (key + ":" + str(round(value["in_use_modified"])) + ",")
+            soak_count += key + ":" + str(round(value["in_use_modified"])) + ","
         # Does nothing atm, idea is be able to set max total in use on cluster.
-        #value.max_use
+        # value.max_use
 
     cluster = "mahuika"
-    res_name="licence_soak2"
+    res_name = "licence_soak2"
     # starts in 1 minute, ends in 1 year.
     default_reservation = {
         "StartTime": (dt.datetime.now() + dt.timedelta(seconds=10)).strftime(("%Y-%m-%dT%H:%M:%S")),
@@ -155,22 +168,23 @@ def apply_soak(licence_list):
     # 2009-02-06T16:00:00
     default_reservation_string = ""
     for key, value in default_reservation.items():
-        default_reservation_string+= " " + key + "=" + str(value)
+        default_reservation_string += " " + key + "=" + str(value)
 
     try:
-        sub_input="scontrol update -M " + cluster +" ReservationName=" + res_name + " licenses=\"" + soak_count + "\""
+        sub_input = "scontrol update -M " + cluster + " ReservationName=" + res_name + ' licenses="' + soak_count + '"'
         log.debug(sub_input)
-        subprocess.check_output(sub_input, shell=True).decode("utf-8")   
+        subprocess.check_output(sub_input, shell=True).decode("utf-8")
         log.info("Reservation updated successescsfully!")
     except:
         log.error("Failed to update 'licence_soak' attempting to create new reservation.")
         try:
-            sub_input="scontrol create ReservationName=" + res_name + default_reservation_string + " licenses=\"" + soak_count + "\""
+            sub_input = "scontrol create ReservationName=" + res_name + default_reservation_string + ' licenses="' + soak_count + '"'
             log.debug(sub_input)
             subprocess.check_output(sub_input, shell=True).decode("utf-8")
             log.error("New reservation created successescsfully!")
         except:
             log.error("Failed! Everything failed!")
+
 
 def main():
     # Checks all licences in "meta" are in "list"
@@ -180,19 +194,19 @@ def main():
     validate(licence_list, licence_meta)
     c.deep_merge(licence_meta, licence_list)
 
-    if not os.environ["USER"] == settings['user']:
-        log.warning("LMUTIL skipped as user not '" + settings['user'] + "'")
-        log.warning("APPLY_SOAK skipped as user not '" + settings['user'] + "'")
+    if not os.environ["USER"] == settings["user"]:
+        log.warning("LMUTIL skipped as user not '" + settings["user"] + "'")
+        log.warning("APPLY_SOAK skipped as user not '" + settings["user"] + "'")
     else:
-        apply_soak(licence_list)
         lmutil(licence_list)
 
-    c.writemake_json('licence_list.json', licence_list)
+        apply_soak(licence_list)
 
+    c.writemake_json("licence_list.json", licence_list)
 
 
 # ===== Log Stuff =====#
-log_path="warn.logs" 
+log_path = "warn.logs"
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
@@ -211,7 +225,7 @@ log.addHandler(file_logs)
 
 log.info("Starting...")
 
-settings = c.readmake_json('licence_collector_settings.json')
+settings = c.readmake_json("licence_collector_settings.json")
 
 c.dummy_checks()
 
@@ -221,15 +235,14 @@ licence_meta = c.readmake_json("meta/licence_meta.json")
 licence_list = c.readmake_json("licence_list.json")
 
 # Is correct user
-if os.environ["USER"] != settings['user']:
-    log.error("COMMAND SHOULD BE RUN AS '" + settings['user'] + "' ELSE LICENCE STATS WONT WORK")
+if os.environ["USER"] != settings["user"]:
+    log.error("COMMAND SHOULD BE RUN AS '" + settings["user"] + "' ELSE LICENCE STATS WONT WORK")
 
 while 1:
-    looptime=time.time()
+    looptime = time.time()
     main()
-    log.info("main loop time = " + str(time.time()-looptime))
-    time.sleep((settings["poll_period"]-(time.time()-looptime)))
-
+    log.info("main loop time = " + str(time.time() - looptime))
+    time.sleep((settings["poll_period"] - (time.time() - looptime)))
 
 
 # def attach_lic(licence_dat, module_dat):
@@ -305,12 +318,12 @@ while 1:
 #         #     log.info("Licence object " + key + " is disabled and will not be evaluated.")
 
 # def update_history(licences):
-    # """Gets history data from previous license object"""
-    # prev = c.readmake_json("cache/licence_meta.json")
+# """Gets history data from previous license object"""
+# prev = c.readmake_json("cache/licence_meta.json")
 
-    # for key, value in licences.items():
-    #     if key in prev and prev[key]["history"]:
-    #         value["history"] = prev[key]["history"]
+# for key, value in licences.items():
+#     if key in prev and prev[key]["history"]:
+#         value["history"] = prev[key]["history"]
 # def add_new(licences):
 #     for key, value in licences.items():
 
