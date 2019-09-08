@@ -61,7 +61,7 @@ def lmutil(licence_list):
                             if value["day_ave"][hour_index]
                             else value["in_use_real"]
                         )
-                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index])
+                        log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
                     else:
                         log.error("Feature '" + value["feature"] + "' not found on server.")
 
