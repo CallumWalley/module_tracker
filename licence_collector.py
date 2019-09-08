@@ -12,7 +12,7 @@ def lmutil(licence_list):
 
     flexlm_pattern = "Users of APPLICATION_NAME: \(?Total of (\S+) licenses? issued; Total of (\S+) licenses? in use\)?".replace(" ", " +")
 
-    # for key, value in licence_list.items():
+    for key, value in licence_list.items():
     #     if not value["file_address"]:
     #         return
             
