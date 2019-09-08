@@ -33,21 +33,26 @@ def lmutil(licence_list):
         # if value["flex_method"] == "lmutil":
         #     return
         features=[]
+        lmutil_return=""
+        try:
+            lmutil_return=c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"])
+        except:
+            log.error("Failed to fetch " + key + " for unspecified reason")
 
-        for line in (c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]).split("\n")):  
+        for line in (lmutil_return.split("\n")):  
             m = re.match(pattern, line)
             if m:
                 features.append(m.groupdict())
-        found=False
+            found=False
         for feature in features:
             if feature["feature_name"] == value["feature"]:
                 found=True
                 hour_index = dt.datetime.now().hour - 1
-                value["in_use_real"] = feature["in_use_real"]
+                value["in_use_real"] = int(feature["in_use_real"])
 
                 if value["total"] != feature["total"]:
                     log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
-                    value["total"] = feature["total"]
+                    value["total"] = int(feature["total"])
 
                 # Record to running history
                 value["history"].append(value["in_use_real"])
@@ -81,10 +86,8 @@ def lmutil(licence_list):
 
         if not found:
             log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
-        # except:
-        #     log.error("Failed to fetch " + key + " for unspecified reason")
+        
 
-    return
 
 
 def validate(licence_list, licence_meta):
