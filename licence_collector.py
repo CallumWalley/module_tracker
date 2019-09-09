@@ -9,7 +9,7 @@ from grp import getgrgid
 #=== TO DO ===#
 # Make licences on same daemon use same request.
 # Check other properties
-# Maui/mahuika
+# CURRENTLY DOES NOTHING ON MAUI
 
 
 def lmutil(licence_list):
@@ -182,7 +182,8 @@ def validate(licence_list, licence_meta):
                 log.debug(lic_string)
                 str_arr=lic_string.split("|")
                 active_token_dict[str_arr[0] + "@" + str_arr[1]]=str_arr
-            
+
+
             for key, value in licence_list.items():
 
                 name = value["software_name"] + "_" + value["lic_type"] if value["lic_type"] else value["software_name"]
@@ -196,14 +197,14 @@ def validate(licence_list, licence_meta):
                         log.error("Attempting to add...")
 
                         try:
-                            sub_input="sacctmgr -i add resource Name=" + name.lower() + " Server=" + server.lower() + " Count=" + str(round(value["total"]*2)) + " Type=License"
+                            sub_input="sacctmgr -i add resource Name=" + name.lower() + " Server=" + server.lower() + " Count=" + str(int(value["total"]*2)) + " Type=License percentallowed=50 where cluster=mahuika"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True).decode("utf-8")
                             
                         except Exception as details:
                             log.error(details)
                         else:
-                            log.warning("Token added successfully!")
+                            log.info("Token added successfully!")
                     
                     else:
                         log.error("Must have 'instituiton, software_name, cluster, total' set in order to generate SLURM token.")
@@ -214,26 +215,26 @@ def validate(licence_list, licence_meta):
                         try:
                             sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " set Count=" + str(int(value["total"]*2))
                             log.debug(sub_input)
-                            subprocess.check_output(sub_input, shell=True).decode("utf-8")        
+                            subprocess.check_output(sub_input, shell=True)        
                         except Exception as details:
                             log.error(details)
                         else:
                             log.warning("Token modified successfully!")
-                    if active_token_dict[key][4] != "50":
+                    if active_token_dict[key][7] != "50":
                         log.error("SLURM token not cluster-split")
 
                         try:
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " where cluster=mahuika" +  " set PercentAllowed=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + "percentallocated=100 where cluster=mahuika" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
 
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " where cluster=maui" +  " set PercentAllowed=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + "percentallocated=100 where cluster=maui" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
                         except Exception as details:
                             log.error(details)
                         else:
-                            log.warning("Token modified successfully!")
+                            log.info("Token modified successfully!")
                     
     _fill(licence_list)
     _address(licence_list, licence_meta)
