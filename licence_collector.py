@@ -15,7 +15,7 @@ from grp import getgrgid
 def lmutil(licence_list):
     """Checks total of available licences for all objects passed"""
     # This is a mess. Tidy.
-    pattern="Users of (?P<feature_name>\w*?):  \(Total of (?P<in_use_real>\d*?) licenses issued;  Total of (?P<total>\d*?) licenses in use\)"
+    pattern="Users of (?P<feature_name>\w*?):  \(Total of (?P<total>\d*?) licenses issued;  Total of (?P<in_use_real>\d*?) licenses in use\)"
     # lmutil_list=[]
     # for key, value in licence_list.items():
 
@@ -43,6 +43,7 @@ def lmutil(licence_list):
             m = re.match(pattern, line)
             if m:
                 features.append(m.groupdict())
+                
             found=False
         for feature in features:
             if feature["feature_name"] == value["feature"]:
@@ -50,7 +51,7 @@ def lmutil(licence_list):
                 hour_index = dt.datetime.now().hour - 1
                 value["in_use_real"] = int(feature["in_use_real"])
 
-                if value["total"] != feature["total"]:
+                if value["total"] != int(feature["total"]):
                     log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
                     value["total"] = int(feature["total"])
 
