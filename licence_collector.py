@@ -212,7 +212,7 @@ def validate(licence_list, licence_meta):
                     if value["total"] != int(active_token_dict[key][3])/2:
                         log.error("SLURM TOKEN BAD, HAS " + str(int(active_token_dict[key][3])/2)  + " and should be " + str(value["total"]))
                         try:
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " set Count=" + str(value["total"]*2)
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " set Count=" + str(int(value["total"]*2))
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True).decode("utf-8")        
                         except Exception as details:
@@ -223,11 +223,11 @@ def validate(licence_list, licence_meta):
                         log.error("SLURM token not cluster-split")
 
                         try:
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set PercentAllowed=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " where cluster=mahuika" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
 
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=maui" +  " set PercentAllowed=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " where cluster=maui" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
                         except Exception as details:
