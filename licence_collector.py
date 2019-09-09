@@ -79,7 +79,7 @@ def lmutil(licence_list):
                         if value["day_ave"][hour_index]
                         else value["in_use_real"]
                     )
-                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
+                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic average set to " + str(value["day_ave"][hour_index]))
                 else:
                     log.info("Untracked Feature " + feature["feature_name"] + ": " + (feature["in_use_real"]) +" of " + (feature["total"]) + "in use.")
 
@@ -158,7 +158,7 @@ def validate(licence_list, licence_meta):
                         log.error(value["file_address"] + " owner is '" + owner + "', should be '" + settings["user"] + "'.")
                               
                     if value["file_address"] != standard_address and value["software_name"] and value["institution"]:
-                        log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '".')
+                        log.debug('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '".')
 
                 except:
                     log.error(key + ' has an invalid file path attached "' + value["file_address"] + '"')
