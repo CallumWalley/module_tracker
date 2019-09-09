@@ -99,8 +99,46 @@ def validate(licence_list, licence_meta):
             log.warning(licence + " is new licence. Being added to database wih default values.")
             licence_list[licence] = deepcopy(settings["default"])
 
+
+    def _fill(licence_list):
+        """Guess at any missing properties"""
+        for key, value in licence_list.items():
+            
+            if not value["lic_type"] and len(key.split("@")[0].split('_'))>1:
+                value["lic_type"] = key.split("@")[0].split('_')[1]
+                log.warning(key + " lic_type set to " + value["lic_type"])
+
+            if not value["software_name"]:
+                value["software_name"] = key.split("@")[0].split('_')[0]        
+                log.warning(key + " software_name set to " + value["software_name"])
+
+
+            if not value["feature"]:
+                value["feature"] = key.split("@")[0].split('_')[0]
+                log.warning(key + " feature set to " + value["feature"])
+
+
+            if not value["institution"]:
+                value["institution"] = key.split("@")[1].split('_')[0]
+                log.warning(key + " institution set to " + value["institution"])
+
+
+            if not value["faculty"] and len(key.split("@")[1].split('_'))>1:
+                value["faculty"] = key.split("@")[1].split('_')[1]
+                log.warning(key + " faculty set to " + value["faculty"])
+
+
+            if not value["file_group"] and value["institution"]:
+                value["file_group"] = value["institution"]+"-org"
+                log.warning(key + " file_group set to " + value["file_group"])
+            
+
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
+
+            filename_end = "_" + value["faculty"] if value["faculty"] else ""
+            standard_address = "opt/nesi/mahuika/" + value["software_name"] + "/Licenses/" + value["institution"] + filename_end + ".lic"   
+            
             if value["file_address"]:                
                 try:
                     statdat = os.stat(value["file_address"])
@@ -118,16 +156,16 @@ def validate(licence_list, licence_meta):
 
                     if owner != settings["user"]:
                         log.error(value["file_address"] + " owner is '" + owner + "', should be '" + settings["user"] + "'.")
-                    
-                    filename_end = "_" + value["faculty"] if value["faculty"] else ""
-                    standard_address = "opt/nesi/mahuika/" + value["software_name"] + "/Licenses/" + value["institution"] + filename_end + ".lic"             
+                              
                     if value["file_address"] != standard_address and value["software_name"] and value["institution"]:
                         log.warning('Would be cool if "' + value["file_address"] + '" was "' + standard_address + '".')
 
                 except:
                     log.error(key + ' has an invalid file path attached "' + value["file_address"] + '"')
             else:
-                log.error(key + " has no licence file associated.")
+                value["file_address"]=standard_address
+                log.warning(key + " licence path set to " + standard_address)
+
 
     def _tokens(license_list):
         try:
@@ -138,15 +176,13 @@ def validate(licence_list, licence_meta):
             log.error("Failed to check SLURM tokens. " + str(details))
         else:
             active_token_dict = {}
-            # Format output datat 
+            # Format output data into dictionary 
             for lic_string in string_data.split("\n"):
 
                 log.debug(lic_string)
                 str_arr=lic_string.split("|")
                 active_token_dict[str_arr[0] + "@" + str_arr[1]]=str_arr
-
-
-            # Check each licence has token
+            
             for key, value in licence_list.items():
 
                 name = value["software_name"] + "_" + value["lic_type"] if value["lic_type"] else value["software_name"]
@@ -156,10 +192,7 @@ def validate(licence_list, licence_meta):
                     log.error("'" + key + "' does not have a token in slurm database!")
 
                     # if possible, create.
-                    if value["institution"] and value["total"] and value["software_name"] and  value["cluster"]:
-
-
-                        
+                    if value["institution"] and value["total"] and value["software_name"]:           
                         log.error("Attempting to add...")
 
                         try:
@@ -190,18 +223,19 @@ def validate(licence_list, licence_meta):
                         log.error("SLURM token not cluster-split")
 
                         try:
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50;sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50"
                             log.debug(sub_input)
-                            subprocess.check_output(sub_input, shell=True).decode("utf-8")
+                            subprocess.check_output(sub_input, shell=True)
 
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=maui" +  " set Allocated=50"
+                            log.debug(sub_input)
+                            subprocess.check_output(sub_input, shell=True)
                         except Exception as details:
                             log.error(details)
                         else:
                             log.warning("Token modified successfully!")
                     
-
-
-
+    _fill(licence_list)
     _address(licence_list, licence_meta)
     _tokens(licence_list)
 
@@ -246,6 +280,7 @@ def apply_soak(licence_list):
             log.error("Failed! Everything failed!")
 
 
+
 def main():
     # Checks all licences in "meta" are in "list"
 
@@ -260,7 +295,6 @@ def main():
     else:
             
         lmutil(licence_list)
-
         apply_soak(licence_list)
 
     c.writemake_json("licence_list.json", licence_list)
