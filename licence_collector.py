@@ -1,4 +1,4 @@
-import math, os, stat, re, json, logging, time
+import math, os, stat, re, json, logging, time, subprocess
 import datetime as dt
 
 import common as c
@@ -23,73 +23,72 @@ def lmutil(licence_list):
     #     lmutil_list.append={"path":value["address"]}
 
     for key, value in licence_list.items():
-    #     if not value["file_address"]:
-    #         return
+        if not value["file_address"]:
+            continue 
             
-        # if not value["feature"]: 
-        #     log.error(key + " must have feature specified in order to check with LMUTIL")
-        #     return          
+        if not value["feature"]: 
+            log.error(key + " must have feature specified in order to check with LMUTIL")
+            continue           
             
         # if value["flex_method"] == "lmutil":
         #     return
         features=[]
         lmutil_return=""
         try:
-            lmutil_return=c.shell("linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"])
-        except:
-            log.error("Failed to fetch " + key + " for unspecified reason")
+            shell_string="linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]
+            log.debug(shell_string)
+            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8")
 
-        for line in (lmutil_return.split("\n")):  
-            m = re.match(pattern, line)
-            if m:
-                features.append(m.groupdict())
-                
-            found=False
-        for feature in features:
-            if feature["feature_name"] == value["feature"]:
-                found=True
-                hour_index = dt.datetime.now().hour - 1
-                value["in_use_real"] = int(feature["in_use_real"])
+            for line in (lmutil_return.split("\n")):  
+                m = re.match(pattern, line)
+                if m:
+                    features.append(m.groupdict())
+            for feature in features:
+                if feature["feature_name"] == value["feature"]:
+                    found=True
+                    hour_index = dt.datetime.now().hour - 1
+                    value["in_use_real"] = int(feature["in_use_real"])
 
-                if value["total"] != int(feature["total"]):
-                    log.warning("LMUTIL shows different total number of licences than recorded. Updating...")
-                    value["total"] = int(feature["total"])
+                    if value["total"] != int(feature["total"]):
+                        log.warning("LMUTIL shows different total number of licences than recorded. Changing from '" + str(value["total"]) + "' to '" + feature["total"] + "'")
+                        value["total"] = int(feature["total"])
 
-                # Record to running history
-                value["history"].append(value["in_use_real"])
+                    # Record to running history
+                    value["history"].append(value["in_use_real"])
 
-                # Pop extra array entries
-                while len(value["history"]) > value["history_points"]:
-                    value["history"].pop(0)
+                    # Pop extra array entries
+                    while len(value["history"]) > value["history_points"]:
+                        value["history"].pop(0)
 
-                # Find modified in use value
-                interesting = max(value["history"])
-                value["in_use_modified"] = min(
-                    max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
-                )
-
-                # Set if unset
-                if not len(value["day_ave"]) == 24:
-                    value["day_ave"] = [0] * 24
-
-                # Update average
-                value["day_ave"][hour_index] = (
-                    round(
-                        ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))),
-                        2,
+                    # Find modified in use value
+                    interesting = max(value["history"])
+                    value["in_use_modified"] = min(
+                        max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
                     )
-                    if value["day_ave"][hour_index]
-                    else value["in_use_real"]
-                )
-                log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
-            else:
-                log.info("Untracked Feature " + feature["feature_name"] + ": " + (feature["in_use_real"]) +" of " + (feature["total"]) + "in use.")
 
-        if not found:
-            log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
-        
+                    # Set if unset
+                    if not len(value["day_ave"]) == 24:
+                        value["day_ave"] = [0] * 24
 
+                    # Update average
+                    value["day_ave"][hour_index] = (
+                        round(
+                            ((value["in_use_real"] * settings["point_weight"]) + (value["day_ave"][hour_index] * (1 - settings["point_weight"]))),
+                            2,
+                        )
+                        if value["day_ave"][hour_index]
+                        else value["in_use_real"]
+                    )
+                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic set to " + str(value["day_ave"][hour_index]))
+                else:
+                    log.info("Untracked Feature " + feature["feature_name"] + ": " + (feature["in_use_real"]) +" of " + (feature["total"]) + "in use.")
 
+            if not found:
+                log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
+        except Exception as details:
+            log.error("Failed to fetch " + key + " " + str(details))
+            found=False
+                
 
 def validate(licence_list, licence_meta):
     """Checks for inconsistancies"""
@@ -132,41 +131,76 @@ def validate(licence_list, licence_meta):
 
     def _tokens(license_list):
         try:
-            string_data = c.shell(
-                "sacctmgr -pns show resource withcluster"
-            )
-
-            active_token_list = []
+            sub_input="sacctmgr -pns show resource withcluster"
+            log.debug(sub_input)
+            string_data=subprocess.check_output(sub_input, shell=True).decode("utf-8").strip()
+        except Exception as details:
+            log.error("Failed to check SLURM tokens. " + str(details))
+        else:
+            active_token_dict = {}
+            # Format output datat 
             for lic_string in string_data.split("\n"):
 
                 log.debug(lic_string)
+                str_arr=lic_string.split("|")
+                active_token_dict[str_arr[0] + "@" + str_arr[1]]=str_arr
 
-                lic_string_array = lic_string.split("|")
-                pre_at = lic_string_array[0].split("_")
-                post_at = lic_string_array[1].split("_")
 
-                active_token_list.append(lic_string_array[0] + "@" + lic_string_array[1])
+            # Check each licence has token
             for key, value in licence_list.items():
-                if key not in active_token_list:
+
+                name = value["software_name"] + "_" + value["lic_type"] if value["lic_type"] else value["software_name"]
+                server = value["institution"] + "_" + value["faculty"] if value["faculty"] else value["institution"]
+
+                if key not in active_token_dict.keys():
                     log.error("'" + key + "' does not have a token in slurm database!")
 
+                    # if possible, create.
                     if value["institution"] and value["total"] and value["software_name"] and  value["cluster"]:
 
-                        name = value["software_name"] + "_" + value["lic_type"] if value["lic_type"] else value["software_name"]
-                        server = value["institution"] + "_" + value["faculty"] if value["faculty"] else value["institution"]
-                        
-                        log.error("Attempting to add ")
 
-                        c.shell("sacctmgr add resource Name=" + name.lower() + "Server=" + server.lower() + "Count=" + round(value["total"]*2) + "type=License cluster=" + value["cluster"] +  "percentallowed=50")
+                        
+                        log.error("Attempting to add...")
+
+                        try:
+                            sub_input="sacctmgr -i add resource Name=" + name.lower() + " Server=" + server.lower() + " Count=" + str(round(value["total"]*2)) + " Type=License Cluster=" + value["cluster"] +  " Percentallowed=50"
+                            log.debug(sub_input)
+                            subprocess.check_output(sub_input, shell=True).decode("utf-8")
+                            
+                        except Exception as details:
+                            log.error(details)
+                        else:
+                            log.warning("Token added successfully!")
                     
                     else:
-
                         log.error("Must have 'instituiton, software_name, cluster, total' set in order to generate SLURM token.")
 
+                else:
+                    if value["total"] != int(active_token_dict[key][3])/2:
+                        log.error("SLURM TOKEN BAD, HAS " + str(int(active_token_dict[key][3])/2)  + " and should be " + str(value["total"]))
+                        try:
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " set Count=" + str(value["total"]*2)
+                            log.debug(sub_input)
+                            subprocess.check_output(sub_input, shell=True).decode("utf-8")        
+                        except Exception as details:
+                            log.error(details)
+                        else:
+                            log.warning("Token modified successfully!")
+                    if active_token_dict[key][4] != "50":
+                        log.error("SLURM token not cluster-split")
+
+                        try:
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50;sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50"
+                            log.debug(sub_input)
+                            subprocess.check_output(sub_input, shell=True).decode("utf-8")
+
+                        except Exception as details:
+                            log.error(details)
+                        else:
+                            log.warning("Token modified successfully!")
+                    
 
 
-        except:
-            log.error("Failed to check SLURM tokens")
 
     _address(licence_list, licence_meta)
     _tokens(licence_list)
@@ -212,8 +246,6 @@ def apply_soak(licence_list):
             log.error("Failed! Everything failed!")
 
 
-
-
 def main():
     # Checks all licences in "meta" are in "list"
 
@@ -226,9 +258,10 @@ def main():
         log.warning("LMUTIL skipped as user not '" + settings["user"] + "'")
         log.warning("APPLY_SOAK skipped as user not '" + settings["user"] + "'")
     else:
-        apply_soak(licence_list)
+            
+        lmutil(licence_list)
 
-    lmutil(licence_list)
+        apply_soak(licence_list)
 
     c.writemake_json("licence_list.json", licence_list)
 
