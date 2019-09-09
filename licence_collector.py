@@ -196,7 +196,7 @@ def validate(licence_list, licence_meta):
                         log.error("Attempting to add...")
 
                         try:
-                            sub_input="sacctmgr -i add resource Name=" + name.lower() + " Server=" + server.lower() + " Count=" + str(round(value["total"]*2)) + " Type=License Cluster=" + value["cluster"] +  " Percentallowed=50"
+                            sub_input="sacctmgr -i add resource Name=" + name.lower() + " Server=" + server.lower() + " Count=" + str(round(value["total"]*2)) + " Type=License"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True).decode("utf-8")
                             
@@ -223,11 +223,11 @@ def validate(licence_list, licence_meta):
                         log.error("SLURM token not cluster-split")
 
                         try:
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set Allocated=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=mahuika" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
 
-                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=maui" +  " set Allocated=50"
+                            sub_input="sacctmgr -i modify resource Name=" + name.lower() + " Server=" + server.lower() + " cluster=maui" +  " set PercentAllowed=50"
                             log.debug(sub_input)
                             subprocess.check_output(sub_input, shell=True)
                         except Exception as details:
