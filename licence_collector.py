@@ -102,7 +102,7 @@ def apply_soak(licence_list):
     
     for key, value in licence_list.items():
         
-        #log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
+        log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
 
 
         if value["enabled"]:
