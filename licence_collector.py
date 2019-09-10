@@ -1,3 +1,4 @@
+# encoding: utf-8
 import math, os, stat, re, json, logging, time, subprocess
 import datetime as dt
 
@@ -18,8 +19,6 @@ def lmutil(licence_list):
     pattern="Users of (?P<feature_name>\w*?):  \(Total of (?P<total>\d*?) licenses issued;  Total of (?P<in_use_real>\d*?) licenses in use\)"
     # lmutil_list=[]
     # for key, value in licence_list.items():
-
-
     #     lmutil_list.append={"path":value["address"]}
 
     for key, value in licence_list.items():
@@ -61,10 +60,10 @@ def lmutil(licence_list):
                         value["history"].pop(0)
 
                     # Find modified in use value
-                    interesting = max(value["history"])
-                    value["in_use_modified"] = min(
-                        max(interesting + value["buffer_constant"], round(interesting * (1 + value["buffer_factor"]))), value["total"]
-                    )
+                    interesting = max(value["history"])-value["in_use_nesi"]
+                    value["in_use_modified"] = round(min(
+                        max(interesting + value["buffer_constant"], interesting * (1 + value["buffer_factor"])), value["total"]
+                    ))
 
                     # Set if unset
                     if not len(value["day_ave"]) == 24:
@@ -79,7 +78,6 @@ def lmutil(licence_list):
                         if value["day_ave"][hour_index]
                         else value["in_use_real"]
                     )
-                    log.info(key + ": " + str(value["in_use_real"]) + " licences in use. Historic average set to " + str(value["day_ave"][hour_index]))
                 else:
                     log.info("Untracked Feature " + feature["feature_name"] + ": " + (feature["in_use_real"]) +" of " + (feature["total"]) + "in use.")
 
@@ -87,8 +85,78 @@ def lmutil(licence_list):
                 log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
         except Exception as details:
             log.error("Failed to fetch " + key + " " + str(details))
-            found=False
-                
+            found=False                
+
+def apply_soak(licence_list):
+
+    hour_index = dt.datetime.now().hour - 1
+
+    soak_count = ""
+    log.info("╔═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╗\n║   Licence   ║    Server   ║    Total    ║ In Use All  ║ In Use NeSI ║ Average Use ║     Soak    ║\n╠═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╣")
+    
+    for key, value in licence_list.items():
+        
+        log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
+
+
+        if value["enabled"]:
+            soak_count += key + ":" + str(int(value["soak"])) + ","
+        # Does nothing atm, idea is be able to set max total in use on cluster.
+        # value.max_use
+    log.info("╚═════════════╩═════════════╩═════════════╩═════════════╩═════════════╩═════════════╩═════════════╝")
+
+    cluster = "mahuika"
+    res_name = "licence_soak"
+    # starts in 1 minute, ends in 1 year.
+    try:
+        sub_input = "scontrol update -M " + cluster + " ReservationName=" + res_name + ' licenses="' + soak_count + '"'
+        log.debug(sub_input)
+        subprocess.check_output(sub_input, shell=True).decode("utf-8")
+    except:
+        log.error("Failed to update 'licence_soak' attempting to create new reservation.")
+        # nesi-apps-admin doesn't have permission to do next bit.
+        # try:
+            # default_reservation = {
+            #     "StartTime": (dt.datetime.now() + dt.timedelta(seconds=10)).strftime(("%Y-%m-%dT%H:%M:%S")),
+            #     "EndTime": (dt.datetime.now() + dt.timedelta(days=365)).strftime(("%Y-%m-%dT%H:%M:%S")),
+            #     "Users": "root",
+            #     "Flags": "LICENSE_ONLY",
+            # }
+        #     default_reservation_string = ""
+        #     for key, value in default_reservation.items():
+        #         default_reservation_string += " " + key + "=" + str(value)
+        #     sub_input = "scontrol create ReservationName=" + res_name + default_reservation_string + ' licenses="' + soak_count + '"'
+        #     log.debug(sub_input)
+        #     subprocess.check_output(sub_input, shell=True).decode("utf-8")
+        #     log.error("New reservation created successescsfully!")
+        # except:
+        #     log.error("Failed! Everything failed!")
+    else:
+        log.info("Reservation updated successescsfully!")
+
+def get_nesi_use(licence_list):
+    try:
+        cluster="mahuika"
+        sub_input = "scontrol -M " + cluster + " -do show licenses"
+        log.debug(sub_input)
+        scontrol_string=subprocess.check_output(sub_input, shell=True).decode("utf-8")
+    except Exception as details:
+        log.error("Failed to check scontrol licence usage. " + str(details))
+    else:
+        scontrol_string_list=scontrol_string.split('\n')
+        for line in scontrol_string_list:
+            scontrol_string_array = line.split(' ')
+            scontrol_name = lic_array[0].split('=')[1]
+            scontrol_total = lic_array[1].split('=')[1]
+            scontrol_used = lic_array[2].split('=')[1]
+
+            if scontrol_name in licence_list.keys():
+                if licence_list[scontrol_name]["total"] != lic_total:
+                    log.error("THIS SHOULD NEVER HAPPEN")
+                else:
+                    licence_list[lic_scontrol_namename]["in_use_nesi"] = int(scontrol_used)
+            else:
+                log.error("Licence " + scontrol_name + " does not exist in licence controller.")
 
 def validate(licence_list, licence_meta):
     """Checks for inconsistancies"""
@@ -98,6 +166,9 @@ def validate(licence_list, licence_meta):
         if not licence in licence_list:
             log.warning(licence + " is new licence. Being added to database wih default values.")
             licence_list[licence] = deepcopy(settings["default"])
+    # Adds properties if missing from sachce
+    for value in licence_list.values():
+        value = c.deep_merge(value, deepcopy(settings["default"]))
 
 
     def _fill(licence_list):
@@ -240,63 +311,14 @@ def validate(licence_list, licence_meta):
     _address(licence_list, licence_meta)
     _tokens(licence_list)
 
-
-def apply_soak(licence_list):
-
-    soak_count = ""
-
-    for key, value in licence_list.items():
-        if value["enabled"]:
-            soak_count += key + ":" + str(int(value["in_use_modified"])) + ","
-        # Does nothing atm, idea is be able to set max total in use on cluster.
-        # value.max_use
-
-    cluster = "mahuika"
-    res_name = "licence_soak"
-    # starts in 1 minute, ends in 1 year.
-    default_reservation = {
-        "StartTime": (dt.datetime.now() + dt.timedelta(seconds=10)).strftime(("%Y-%m-%dT%H:%M:%S")),
-        "EndTime": (dt.datetime.now() + dt.timedelta(days=365)).strftime(("%Y-%m-%dT%H:%M:%S")),
-        "Users": "root",
-        "Flags": "LICENSE_ONLY",
-    }
-    # 2009-02-06T16:00:00
-    default_reservation_string = ""
-    for key, value in default_reservation.items():
-        default_reservation_string += " " + key + "=" + str(value)
-
-    try:
-        sub_input = "scontrol update -M " + cluster + " ReservationName=" + res_name + ' licenses="' + soak_count + '"'
-        log.debug(sub_input)
-        subprocess.check_output(sub_input, shell=True).decode("utf-8")
-        log.info("Reservation updated successescsfully!")
-    except:
-        log.error("Failed to update 'licence_soak' attempting to create new reservation.")
-        try:
-            sub_input = "scontrol create ReservationName=" + res_name + default_reservation_string + ' licenses="' + soak_count + '"'
-            log.debug(sub_input)
-            subprocess.check_output(sub_input, shell=True).decode("utf-8")
-            log.error("New reservation created successescsfully!")
-        except:
-            log.error("Failed! Everything failed!")
-
-
-
-def main():
-    # Checks all licences in "meta" are in "list"
-
-    # Updates "list" with "meta" properties.
-
-    validate(licence_list, licence_meta)
     c.deep_merge(licence_meta, licence_list)
 
-    if not os.environ["USER"] == settings["user"]:
-        log.warning("LMUTIL skipped as user not '" + settings["user"] + "'")
-        log.warning("APPLY_SOAK skipped as user not '" + settings["user"] + "'")
-    else:
-            
-        lmutil(licence_list)
-        apply_soak(licence_list)
+def main():
+
+    
+    lmutil(licence_list)
+    get_nesi_use(licence_list)
+    apply_soak(licence_list)
 
     c.writemake_json("licence_list.json", licence_list)
 
@@ -330,10 +352,15 @@ log.info(json.dumps(settings))
 licence_meta = c.readmake_json("meta/licence_meta.json")
 licence_list = c.readmake_json("licence_list.json")
 
+if os.environ.get("VALIDATE")=="NO":
+    log.info("Skipping validation")
+else:
+    validate(licence_list, licence_meta)
+    
 # Is correct user
 if os.environ["USER"] != settings["user"]:
     log.error("COMMAND SHOULD BE RUN AS '" + settings["user"] + "' ELSE LICENCE STATS WONT WORK")
-
+    exit()
 while 1:
     looptime = time.time()
     main()
