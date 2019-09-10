@@ -146,9 +146,9 @@ def get_nesi_use(licence_list):
         scontrol_string_list=scontrol_string.split('\n')
         for line in scontrol_string_list:
             scontrol_string_array = line.split(' ')
-            scontrol_name = lic_array[0].split('=')[1]
-            scontrol_total = lic_array[1].split('=')[1]
-            scontrol_used = lic_array[2].split('=')[1]
+            scontrol_name = scontrol_string_array[0].split('=')[1]
+            scontrol_total = scontrol_string_array[1].split('=')[1]
+            scontrol_used = scontrol_string_array[2].split('=')[1]
 
             if scontrol_name in licence_list.keys():
                 if licence_list[scontrol_name]["total"] != lic_total:
@@ -356,7 +356,7 @@ if os.environ.get("VALIDATE")=="NO":
     log.info("Skipping validation")
 else:
     validate(licence_list, licence_meta)
-    
+
 # Is correct user
 if os.environ["USER"] != settings["user"]:
     log.error("COMMAND SHOULD BE RUN AS '" + settings["user"] + "' ELSE LICENCE STATS WONT WORK")
