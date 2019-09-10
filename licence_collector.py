@@ -36,7 +36,7 @@ def lmutil(licence_list):
         try:
             shell_string="linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]
             log.debug(shell_string)
-            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8").strip          
+            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8").strip()         
         except Exception as details:
             log.error("Failed to fetch " + key + " " + str(details))
         else:
