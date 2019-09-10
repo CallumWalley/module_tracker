@@ -7,6 +7,8 @@ from copy import deepcopy
 from pwd import getpwuid
 from grp import getgrgid
 
+from common import log
+
 #=== TO DO ===#
 # Make licences on same daemon use same request.
 # Check other properties
@@ -94,11 +96,13 @@ def apply_soak(licence_list):
     hour_index = dt.datetime.now().hour - 1
 
     soak_count = ""
-    log.info("╔═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╗\n║   Licence   ║    Server   ║    Total    ║ In Use All  ║ In Use NeSI ║ Average Use ║     Soak    ║\n╠═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╣")
+    log.info("╔═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╦═════════════╗")
+    log.info("║   Licence   ║    Server   ║    Total    ║ In Use All  ║ In Use NeSI ║ Average Use ║     Soak    ║")
+    log.info("╠═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╬═════════════╣")
     
     for key, value in licence_list.items():
         
-        log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
+        #log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
 
 
         if value["enabled"]:
@@ -168,10 +172,12 @@ def validate(licence_list, licence_meta):
     for licence in licence_meta.keys():
         if not licence in licence_list:
             log.warning(licence + " is new licence. Being added to database wih default values.")
-            licence_list[licence] = deepcopy(settings["default"])
-    # Adds properties if missing from sachce
-    for value in licence_list.values():
-        value = c.deep_merge(value, deepcopy(settings["default"]))
+            licence_list[licence] = {}
+    # Adds properties if missing from cachce (for some reason)
+    for licence in licence_list.values():
+        for key in settings["default"].keys():
+            if key not in licence:
+                licence[key] = settings["default"][key]
 
 
     def _fill(licence_list):
@@ -313,7 +319,6 @@ def validate(licence_list, licence_meta):
     _fill(licence_list)
     _address(licence_list, licence_meta)
     _tokens(licence_list)
-
     c.deep_merge(licence_meta, licence_list)
 
 def main():
@@ -324,24 +329,6 @@ def main():
     apply_soak(licence_list)
 
     c.writemake_json("licence_list.json", licence_list)
-
-
-# ===== Log Stuff =====#
-log_path = "warn.logs"
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-# Log Info to console USE ENV VARIABLE LOGLEVEL TO OVERRIDE
-console_logs = logging.StreamHandler()
-console_logs.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
-console_logs.setLevel(os.environ.get("LOGLEVEL", "INFO"))
-log.addHandler(console_logs)
-
-# Log warnings and above to text file.
-file_logs = logging.FileHandler(log_path)
-file_logs.setLevel("WARNING")
-file_logs.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-log.addHandler(file_logs)
 
 
 log.info("Starting...")
