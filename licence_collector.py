@@ -36,12 +36,17 @@ def lmutil(licence_list):
         try:
             shell_string="linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]
             log.debug(shell_string)
-            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8")
-
+            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8").strip          
+        except Exception as details:
+            log.error("Failed to fetch " + key + " " + str(details))
+        else:
             for line in (lmutil_return.split("\n")):  
                 m = re.match(pattern, line)
                 if m:
                     features.append(m.groupdict())
+
+            found=False                
+
             for feature in features:
                 if feature["feature_name"] == value["feature"]:
                     found=True
@@ -83,9 +88,6 @@ def lmutil(licence_list):
 
             if not found:
                 log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
-        except Exception as details:
-            log.error("Failed to fetch " + key + " " + str(details))
-            found=False                
 
 def apply_soak(licence_list):
 
