@@ -4,7 +4,28 @@ import requests
 import logging
 import datetime
 import subprocess
-log = logging.getLogger(__name__)
+
+def init_logger(path):
+    
+    # ===== Log Stuff =====#
+    log_path = path
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+
+    # Log Info to console USE ENV VARIABLE LOGLEVEL TO OVERRIDE
+    console_logs = logging.StreamHandler()
+    console_logs.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
+    console_logs.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+    log.addHandler(console_logs)
+
+    # Log warnings and above to text file.
+    file_logs = logging.FileHandler(log_path)
+    file_logs.setLevel("WARNING")
+    file_logs.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+
+    log.addHandler(file_logs)
+
+    return log
 
 def pull(address):
     request = requests.get(address)
@@ -64,8 +85,8 @@ def deep_merge(over, under, write_log=False):
     diff_log = ""
     #now=datetime.datetime.now()
     # Returns difference if write log true
-
     for key, value in over.items():
+    
         if not value:
             log.debug(key + ": no changes to make.")
         elif key in under:
@@ -126,6 +147,7 @@ def deep_merge(over, under, write_log=False):
                                           json.dumps(value))
                 log.debug("Change written to log")
             under[key] = value
+    
     return diff_log
 
 def dummy_checks():
@@ -141,11 +163,5 @@ def dummy_checks():
     # if not (socket.gethostname().startswith("mahuika")):
     #     log.error("Currently must be run from Mahuika. Because I am lazy.")
     #     return 1
-def shell(input_string):
-    log.debug("Calling shell command '" + input_string + "'")
-
-    try:
-        return subprocess.check_output(input_string, stderr=subprocess.STDOUT, shell=True).strip()
-
-    except Exception as details:
-        log.error(details)
+    
+log=init_logger("warn.logs")
