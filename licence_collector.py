@@ -1,5 +1,5 @@
 # encoding: utf-8
-import math, os, stat, re, json, logging, time, subprocess
+import math, os, stat, re, json, logging, time, subprocess, sys
 import datetime as dt
 
 import common as c
@@ -15,7 +15,7 @@ from common import log
 # CURRENTLY DOES NOTHING ON MAUI
 
 
-def lmutil(licence_list):
+def lmutil():
     """Checks total of available licences for all objects passed"""
     # This is a mess. Tidy.
     pattern="Users of (?P<feature_name>\w*?):  \(Total of (?P<total>\d*?) licenses issued;  Total of (?P<in_use_real>\d*?) licenses in use\)"
@@ -38,7 +38,7 @@ def lmutil(licence_list):
         try:
             shell_string="linx64/lmutil " + "lmstat " + "-f " + value["feature"] + " -c " + value["file_address"]
             log.debug(shell_string)
-            lmutil_return=subprocess.check_output(shell_string, shell=True).decode("utf-8").strip()         
+            lmutil_return=subprocess.check_output(shell_string, shell=True).strip()    #Removed .decode("utf-8") as threw error.     
         except Exception as details:
             log.error("Failed to fetch " + key + " " + str(details))
         else:
@@ -69,7 +69,7 @@ def lmutil(licence_list):
                     # Find modified in use value
                     interesting = max(value["history"])-value["in_use_nesi"]
                     value["in_use_modified"] = round(min(
-                        max(interesting + value["buffer_constant"], interesting * (1 + value["buffer_factor"])), value["total"]
+                        max(interesting + value["buffer_constant"], interesting * (1 + value["buffer_factor"])), value["total"], 0
                     ))
 
                     # Update average
@@ -87,7 +87,7 @@ def lmutil(licence_list):
             if not found:
                 log.error("Feature '" + value["feature"] + "' not found on server for '" + key + "'")
 
-def apply_soak(licence_list):
+def apply_soak():
 
     hour_index = dt.datetime.now().hour - 1
 
@@ -136,7 +136,7 @@ def apply_soak(licence_list):
     else:
         log.info("Reservation updated successescsfully!")
 
-def get_nesi_use(licence_list):
+def get_nesi_use():
     try:
         cluster="mahuika"
         sub_input = "scontrol -M " + cluster + " -do show licenses"
@@ -160,8 +160,19 @@ def get_nesi_use(licence_list):
                     licence_list[scontrol_name]["in_use_nesi"] = int(scontrol_used)
             else:
                 log.error("Licence " + scontrol_name + " does not exist in licence controller.")
+                log.info("Empty licence " + scontrol_name + " added to meta.")
+                licence_meta[scontrol_name]={}
+                restart()
 
-def validate(licence_list, licence_meta):
+def restart():
+    """Restarts licence controller"""
+    log.info("Restarting licence controller")
+    c.writemake_json("licence_list.json", licence_list)
+    c.writemake_json("meta/licence_meta.json", licence_meta)
+
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+def validate():
     """Checks for inconsistancies"""
 
     # Adds if licence exists in meta but not list
@@ -175,7 +186,6 @@ def validate(licence_list, licence_meta):
             if key not in licence:
                 licence[key] = settings["default"][key]
 
-
     def _fill(licence_list):
         """Guess at any missing properties"""
         for key, value in licence_list.items():
@@ -187,7 +197,6 @@ def validate(licence_list, licence_meta):
             if not value["software_name"]:
                 value["software_name"] = key.split("@")[0].split('_')[0]        
                 log.warning(key + " software_name set to " + value["software_name"])
-
 
             if not value["feature"]:
                 value["feature"] = key.split("@")[0].split('_')[0]
@@ -202,7 +211,6 @@ def validate(licence_list, licence_meta):
             if not value["faculty"] and len(key.split("@")[1].split('_'))>1:
                 value["faculty"] = key.split("@")[1].split('_')[1]
                 log.warning(key + " faculty set to " + value["faculty"])
-
 
             if not value["file_group"] and value["institution"]:
                 value["file_group"] = value["institution"]+"-org"
@@ -243,7 +251,6 @@ def validate(licence_list, licence_meta):
             else:
                 value["file_address"]=standard_address
                 log.warning(key + " licence path set to " + standard_address)
-
 
     def _tokens(license_list):
         try:
@@ -321,13 +328,16 @@ def validate(licence_list, licence_meta):
 
 def main():
 
-    
-    lmutil(licence_list)
-    get_nesi_use(licence_list)
-    apply_soak(licence_list)
+    looptime = time.time()
+
+    lmutil()
+    get_nesi_use()
+    apply_soak()
 
     c.writemake_json("licence_list.json", licence_list)
 
+    log.info("main loop time = " + str(time.time() - looptime))
+    time.sleep((settings["poll_period"] - (time.time() - looptime)))
 
 log.info("Starting...")
 
@@ -343,18 +353,16 @@ licence_list = c.readmake_json("licence_list.json")
 if os.environ.get("VALIDATE")=="NO":
     log.info("Skipping validation")
 else:
-    validate(licence_list, licence_meta)
+    validate()
+
 
 # Is correct user
-if 0: #os.environ["USER"] != settings["user"]:
+if os.environ["USER"] != settings["user"]:
     log.error("COMMAND SHOULD BE RUN AS '" + settings["user"] + "' ELSE LICENCE STATS WONT WORK")
     exit()
 while 1:
-    looptime = time.time()
     main()
-    log.info("main loop time = " + str(time.time() - looptime))
-    time.sleep((settings["poll_period"] - (time.time() - looptime)))
-
+    
 
 # def attach_lic(licence_dat, module_dat):
 #     """Attach licence info for every application"""
