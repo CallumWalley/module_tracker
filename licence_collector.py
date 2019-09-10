@@ -72,10 +72,6 @@ def lmutil(licence_list):
                         max(interesting + value["buffer_constant"], interesting * (1 + value["buffer_factor"])), value["total"]
                     ))
 
-                    # Set if unset
-                    if not len(value["day_ave"]) == 24:
-                        value["day_ave"] = [0] * 24
-
                     # Update average
                     value["day_ave"][hour_index] = (
                         round(
@@ -102,7 +98,7 @@ def apply_soak(licence_list):
     
     for key, value in licence_list.items():
         
-        log.info("║" + key.split("@")[0].center(13) + "║" + key.split("@")[1].center(13) + "║" + str(value["total"]).center(13) + "║" + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13)+ "║" + str(value["soak"]).center(13) + "═╣")
+        log.info("║" + str(key.split("@")[0].center(13)) + "║" + str(key.split("@")[1].center(13)) + "║" + str(value["total"]).center(13) + "║"  + str(value["in_use_real"]).center(13) + "║" + str(value["in_use_nesi"]).center(13) + "║" + str(value["day_ave"][hour_index]).center(13) + "║" + str(value["soak"]).center(13) + "║")
 
 
         if value["enabled"]:
@@ -212,6 +208,8 @@ def validate(licence_list, licence_meta):
                 value["file_group"] = value["institution"]+"-org"
                 log.warning(key + " file_group set to " + value["file_group"])
             
+            if not value["day_ave"] or not len(value["day_ave"]) == 24:
+                value["day_ave"] = [0] * 24
 
     def _address(licence_list, licence_meta):
         for key, value in licence_list.items():
@@ -348,7 +346,7 @@ else:
     validate(licence_list, licence_meta)
 
 # Is correct user
-if os.environ["USER"] != settings["user"]:
+if 0: #os.environ["USER"] != settings["user"]:
     log.error("COMMAND SHOULD BE RUN AS '" + settings["user"] + "' ELSE LICENCE STATS WONT WORK")
     exit()
 while 1:
