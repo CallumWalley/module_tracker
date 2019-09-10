@@ -139,19 +139,20 @@ def get_nesi_use(licence_list):
         cluster="mahuika"
         sub_input = "scontrol -M " + cluster + " -do show licenses"
         log.debug(sub_input)
-        scontrol_string=subprocess.check_output(sub_input, shell=True).decode("utf-8")
+        scontrol_string=subprocess.check_output(sub_input, shell=True).decode("utf-8").strip()
     except Exception as details:
         log.error("Failed to check scontrol licence usage. " + str(details))
     else:
         scontrol_string_list=scontrol_string.split('\n')
         for line in scontrol_string_list:
-            scontrol_string_array = line.split(' ')
-            scontrol_name = scontrol_string_array[0].split('=')[1]
-            scontrol_total = scontrol_string_array[1].split('=')[1]
-            scontrol_used = scontrol_string_array[2].split('=')[1]
+            log.debug(line)
+
+            scontrol_name = line.split(' ')[0].split('=')[1]
+            scontrol_total = line.split(' ')[1].split('=')[1]
+            scontrol_used = line.split(' ')[2].split('=')[1]
 
             if scontrol_name in licence_list.keys():
-                if licence_list[scontrol_name]["total"] != scontrol_total:
+                if licence_list[scontrol_name]["total"] != int(scontrol_total):
                     log.error("THIS SHOULD NEVER HAPPEN")
                 else:
                     licence_list[scontrol_name]["in_use_nesi"] = int(scontrol_used)
