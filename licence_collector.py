@@ -151,10 +151,10 @@ def get_nesi_use(licence_list):
             scontrol_used = scontrol_string_array[2].split('=')[1]
 
             if scontrol_name in licence_list.keys():
-                if licence_list[scontrol_name]["total"] != lic_total:
+                if licence_list[scontrol_name]["total"] != scontrol_total:
                     log.error("THIS SHOULD NEVER HAPPEN")
                 else:
-                    licence_list[lic_scontrol_namename]["in_use_nesi"] = int(scontrol_used)
+                    licence_list[scontrol_name]["in_use_nesi"] = int(scontrol_used)
             else:
                 log.error("Licence " + scontrol_name + " does not exist in licence controller.")
 
