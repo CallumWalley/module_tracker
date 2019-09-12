@@ -170,32 +170,28 @@ get_licences()
 
 # attach tags
 # pull from repo
-domain_tags = c.pull("https://raw.githubusercontent.com/nesi/modlist/master/domainTags.json")
+domain_tags = c.pull("https://github.com/nesi/modlist/raw/master/domain_tags.json")
 
 if isinstance(domain_tags, dict):
     c.writemake_json("cache/domain_tags.json", domain_tags)
 else:
     log.error("Using cached version of domain tags")
     domain_tags = c.readmake_json(
-        "cache/domain_tags.json",
-        {
-            "biology": [],
-            "engineering": [],
-            "physics": [],
-            "analytics": [],
-            "visualisation": [],
-            "geology": [],
-            "mathematics": [],
-            "chemistry": [],
-            "language": [],
-        },
+        "cache/domain_tags.json"
+    )
+
+licence_tags = c.pull("https://github.com/nesi/modlist/raw/master/licence_tags.json")
+
+if isinstance(domain_tags, dict):
+    c.writemake_json("cache/licence_tags.json", domain_tags)
+else:
+    log.error("Using cached version of licence tags")
+    domain_tags = c.readmake_json(
+        "cache/licence_tags.json"
     )
 
 c.assign_tags(all_modules, "domains", domain_tags)
-
-# Apply Overwrites
-# module_overwrite_dat = c.readmake_json('master_overwrites.json')
-# c.deep_merge(module_dat, module_overwrite_dat)
+c.assign_tags(all_modules, "licence_type", licence_tags)
 
 timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 log.info("Updated as of " + timestamp)
