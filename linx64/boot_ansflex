@@ -1,5 +1,0 @@
-# This is a dummy file replacing the boot_ansflex file that was used to start the ANSYS
-# license manager at system boot time at Releases 11.0 and lower.  At Releases 12.0 and
-# higher, the process was changed to use the init_ansysli script in the licensing 
-# directory.  For additional details, please reference the section entitled 'Starting
-# the License Manager at System Boot Time' in the ANSYS, Inc. Licensing Guide.

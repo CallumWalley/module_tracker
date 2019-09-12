@@ -38,8 +38,8 @@ def pull(address):
                       " to dictionary.")
             print(request.content)
     else:
-        log.error("Failed to pull from " + address + " (" +
-                  request.status_code + ").")
+        log.error("Failed to pull from " + str(address) + " (" +
+                  str(request.status_code) + ").")
     return 1
 #Read file at {path}. If not exist make one with {default} value
 

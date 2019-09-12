@@ -1,0 +1,18 @@
+{
+    "remote": "",
+    "token": "",
+    "licences_path":"../licence_controller/cache/licence_list.json",
+    "update": [
+        "!mahuika",
+        "!maui"
+    ],
+    "default": {
+        "description": "",
+        "domains": [],
+        "licence_type": "",
+        "homepage": "",
+        "support": "",
+        "machines": {},
+        "licences": {}
+    }
+}
