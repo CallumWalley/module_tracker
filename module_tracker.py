@@ -173,11 +173,11 @@ get_licences()
 domain_tags = c.pull("https://raw.githubusercontent.com/nesi/modlist/master/domainTags.json")
 
 if isinstance(domain_tags, dict):
-    c.writemake_json("meta/domain_tags.json", domain_tags)
+    c.writemake_json("cache/domain_tags.json", domain_tags)
 else:
     log.error("Using cached version of domain tags")
     domain_tags = c.readmake_json(
-        "meta/domain_tags.json",
+        "cache/domain_tags.json",
         {
             "biology": [],
             "engineering": [],
