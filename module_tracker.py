@@ -107,7 +107,7 @@ def get_licences():
     if isinstance(alias, dict):
         c.writemake_json("cache/alias.json", alias)
     else:
-        log.error("Using cached version of domain tags")
+        log.error("Using cached version of alias")
         alias = c.readmake_json("cache/alias.json")
 
     for module_name, module_values in all_modules.items():
@@ -141,7 +141,6 @@ log.info(json.dumps(settings))
 # Read cached data;
 mahuika_modules_cache = c.readmake_json("cache/mahuika_cache.json", {})
 maui_modules_cache = c.readmake_json("cache/maui_cache.json", {})
-licences_cache = c.readmake_json("cache/maui_cache.json", {})
 
 
 if "mahuika" in settings["update"]:
@@ -197,8 +196,6 @@ timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 log.info("Updated as of " + timestamp)
 output_dict = {"modules": all_modules, "date": timestamp}
 
-# Write to cache
-# c.writemake_json('cache/full_cache2.json', output_dict)
 c.writemake_json("module_list.json", output_dict)
 
 log.info("DONE!")
