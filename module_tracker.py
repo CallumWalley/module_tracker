@@ -13,6 +13,22 @@ from common import log
 from copy import deepcopy
 
 
+def get_darcs_log():
+
+    darcs_path="/opt/nesi/nesi-apps-admin/Mahuika/easyconfigs/"
+    darcs_period="last day"
+
+    try:
+        shell_string="darcs changes --repodir " + darcs_path + " --match 'date \"" + darcs_period + "\"'"
+        log.debug(shell_string)
+        data = subprocess.check_output(shell_string, stderr=subprocess.STDOUT, shell=True).decode("utf-8")
+        log.debug(data)
+        log.info("Dracs log dun got.")
+
+        return data
+
+    except Exception as details:
+        log.error("Failed to read darcs log: " + details)
 
 
 def avail_path(machine, module_path):
@@ -135,7 +151,7 @@ def get_licences():
 settings = c.readmake_json("settings.json")
 
 log.info("Starting...")
-log.info(json.dumps(settings))
+log.debug(json.dumps(settings))
 
 # ===== Module list =====#
 # Read cached data;
@@ -192,10 +208,14 @@ else:
 c.assign_tags(all_modules, "domains", domain_tags)
 c.assign_tags(all_modules, "licence_type", licence_tags)
 
+darcs_log = get_darcs_log()
+
 timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 log.info("Updated as of " + timestamp)
-output_dict = {"modules": all_modules, "date": timestamp}
 
+output_dict = { "modules": all_modules, "date": timestamp, "darcs_log":darcs_log }
+
+c.post_kafka('environment-module-tracking', output_dict)
 c.writemake_json("module_list.json", output_dict)
 
 log.info("DONE!")

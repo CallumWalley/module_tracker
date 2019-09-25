@@ -13,6 +13,10 @@
         "homepage": "",
         "support": "",
         "machines": {},
-        "licences": {}
+        "licences": {},
+        "default":"",
+        "modulefile_text":"",
+        "module_path":""
+
     }
 }
