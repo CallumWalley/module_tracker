@@ -30,7 +30,6 @@ def get_darcs_log():
     except Exception as details:
         log.error("Failed to read darcs log: " + details)
 
-
 def avail_path(machine, module_path):
 
     log.info("Reading modules from " + machine)
@@ -128,14 +127,15 @@ def get_licences():
 
     for module_name, module_values in all_modules.items():
         for licence_name, licence_values in licence_object.items():
-            if module_name.lower() == licence_values["software_name"].lower() and licence_values["enabled"]:# and licence_values["visible"]:
+            if module_name.lower() == licence_values["software_name"].lower() and licence_values["enabled"] and licence_values["visible"]:
                 log.debug("Attaching licences to " + module_name)
 
                 module_values["licences"][licence_name]={}
+                
                 # Only copy some values over
-                module_values["licences"][licence_name]={key: licence_values[key] for key in ('lic_type', 'conditions', 'day_ave', 'total')}
-                # Add nice names if possible.
+                module_values["licences"][licence_name]={key: licence_values[key] for key in ('license_type', 'use_conditions', 'hourly_averages', 'real_total')}
 
+                # Add nice names if possible.
                 if licence_values["institution"] in alias:
                     module_values["licences"][licence_name]["institution"]=alias[licence_values["institution"]]
                     log.debug(licence_name + ": using alias '" + alias[licence_values["institution"]] + "' in place of institution '" + licence_values["institution"] + "'.")
