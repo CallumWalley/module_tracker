@@ -2,10 +2,38 @@
     "remote": "",
     "token": "",
     "licences_path":"../licence_controller/cache/licence_list.json",
-    "update": [
-        "!mahuika",
-        "!maui"
-    ],
+    "tags":{
+        "domains":{
+            "enabled":true,
+            "cache":"cache/tags_domains.json",
+            "remote":"https://raw.githubusercontent.com/nesi/modlist/master/tags_domains.json"
+        },
+        "licence_type":{
+            "enabled":true,
+            "cache":"cache/tags_licence_type.json",
+            "remote":"https://raw.githubusercontent.com/nesi/modlist/master/tags_licence_type.json"
+        }
+    },
+    "clusters": {
+        "mahuika":{
+            "enabled": true,
+            "update": false,
+            "module_path":"/opt/nesi/CS400_centos7_bdw/modules/all:/opt/nesi/share/modules/all",
+            "cache":"cache/mahuika_cache.json"
+        },
+        "maui":{
+            "enabled": true,
+            "update": false,
+            "module_path":"/opt/nesi/XC50_sles12_skl/modules/all:/opt/nesi/share/modules/all",
+            "cache":"cache/maui_cache.json"
+        },
+        "maui_ancil":{
+            "enabled": true,
+            "update": true,
+            "module_path":"/opt/nesi/CS500_centos7_skl/modules/all",
+            "cache":"cache/maui_ancil_cache.json"
+        }
+    },
     "default": {
         "description": "",
         "domains": [],
