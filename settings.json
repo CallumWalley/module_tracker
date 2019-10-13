@@ -1,6 +1,6 @@
 {
     "remote": "",
-    "token": "",
+    "token": "dd",
     "licences_path":"../licence_controller/cache/licence_list.json",
     "tags":{
         "domains":{
