@@ -129,7 +129,7 @@ def get_licences():
     else:
         c.writemake_json("cache/alias.json", alias)
 
-    for module_name, module_values in cluster_modules.items():
+    for module_name, module_values in all_cluster_modules.items():
         for licence_name, licence_values in licence_object.items():
             if module_name.lower() == licence_values["software_name"].lower() and licence_values["enabled"] and licence_values["visible"]:
                 log.debug("Attaching licences to " + module_name)
