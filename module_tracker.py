@@ -26,7 +26,7 @@ def get_darcs_log():
         return data
 
     except Exception as details:
-        log.error("Failed to read darcs log: " + details)
+        log.error("Failed to read darcs log: " + str(details))
 
 def module_avail(machine, module_path):
 
@@ -117,11 +117,11 @@ def get_licences():
             try:
                 alias = request.json()
             except Exception as details: 
-                log.error("Failed to parse request from " +"https://raw.githubusercontent.com/nesi/modlist/master/aliases.json" + " to dictionary: " + details)
+                log.error("Failed to parse request from " +"https://raw.githubusercontent.com/nesi/modlist/master/aliases.json" + " to dictionary: " + str(details))
                 log.debug(str(request.content))
                 return 1
     except Exception as details:
-        log.error("Failed to pull from " + "https://raw.githubusercontent.com/nesi/modlist/master/aliases.json" + " : " + details)
+        log.error("Failed to pull from " + "https://raw.githubusercontent.com/nesi/modlist/master/aliases.json" + " : " + str(details))
         log.error("Using cached version of aliaseses")
         alias = c.readmake_json(
             "cache/alias.json"
@@ -179,11 +179,11 @@ def get_tags():
                     try:
                         tag_values = request.json()
                     except Exception as details: 
-                        log.error("Failed to parse request from " + value["remote"] + " to dictionary: " + details)
+                        log.error("Failed to parse request from " + value["remote"] + " to dictionary: " + str(details))
                         log.debug(str(request.content))
                         return 1
             except Exception as details:
-                log.error("Failed to pull from " + value["remote"] + " : " + details)
+                log.error("Failed to pull from " + value["remote"] + " : " + str(details))
                 log.error("Using cached version of " + key + " tags")
                 tag_values = c.readmake_json(
                     value["cache"]
@@ -205,7 +205,29 @@ def get_tags():
                             all_cluster_modules[module][key] = tag_key
                     else:
                         log.warning("Tag '" + module + "' does not correspond to a application on the platform.")
-                
+
+def get_overwrites():
+    overwrite_values=""
+    remote=settings["master_overwrite"]["remote"]
+    try:
+        request = requests.get(remote)
+        if request.status_code == 200:
+            try:
+                overwrite_values = request.json()
+            except Exception as details: 
+                log.error("Failed to parse request from " + remote + " to dictionary: " + str(details))
+                log.debug(str(request.content))
+                return 1
+    except Exception as details:
+        log.error("Failed to pull from " + remote + " : " + str(details))
+        log.error("Using cached version of overwrites")
+        overwrite_values = c.readmake_json(
+            settings["master_overwrite"]["cache"]
+        )
+    else:
+        c.writemake_json(settings["master_overwrite"]["cache"], overwrite_values)
+
+    c.deep_merge(all_cluster_modules, overwrite_values)
 settings = c.readmake_json("settings.json")
 
 log.info("Starting...")
@@ -229,7 +251,8 @@ get_licences()
 
 # ====== Attach Tags ======#
 get_tags()
-
+# ==== Apply Overwrites ===#
+get_overwrites()
 # ===== Get Darcs Log =====#
 darcs_log = get_darcs_log()
 

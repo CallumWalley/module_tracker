@@ -2,6 +2,11 @@
     "remote": "",
     "token": "dd",
     "licences_path":"../licence_controller/cache/licence_list.json",
+    "master_overwrite":{
+        "enabled":true,
+        "cache":"cache/master_overwrites.json",
+        "remote":"https://raw.githubusercontent.com/nesi/modlist/master/master_overwrites.json"
+    },
     "tags":{
         "domains":{
             "enabled":true,
@@ -29,7 +34,7 @@
         },
         "maui_ancil":{
             "enabled": true,
-            "update": true,
+            "update": false,
             "module_path":"/opt/nesi/CS500_centos7_skl/modules/all",
             "cache":"cache/maui_ancil_cache.json"
         }
@@ -44,7 +49,10 @@
         "licences": {},
         "default":"",
         "modulefile_text":"",
-        "module_path":""
+        "module_path":"",
+        "force_hide":false,
+        "force_show":false,
+        "link_override":""
 
     }
 }
