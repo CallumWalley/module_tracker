@@ -4,6 +4,8 @@ import re
 import datetime
 import copy
 import requests
+import time
+
 
 import common as c
 from common import log
@@ -33,9 +35,12 @@ def module_avail(machine, module_path):
     log.info("Reading modules from " + machine)
     # Check if running on mahuika01, and recheck modules
     # source /etc/bashrc doesn't work on maui for some reason
+    looptime=time.time()
 
-    log.info("Working... Takes about 100 sec... for some reason")
+    if not "readtime" in settings["clusters"][machine]:
+        settings["clusters"][machine]['readtime']="some seconds"
 
+    log.info("Working... Usually takes approx " + settings["clusters"][machine]['readtime'] + " seconds.")
 
     shell_string="MODULEPATH='" + module_path + "';/usr/share/lmod/lmod/libexec/lmod -t avail"
     #log.debug(shell_string)
@@ -103,7 +108,7 @@ def module_avail(machine, module_path):
         lastApp = thisApp
 
     log.info("Module avail complete")
-
+    settings["clusters"][machine]['readtime']=str(time.time() - looptime)
     return main_dict
 
 def get_licences():
@@ -268,7 +273,7 @@ except Exception as details:
     log.info("Push to Kafka failed: " + str(details))
 
 c.writemake_json("module_list.json", output_dict)
-
+c.writemake_json("settings.json", settings)
 log.info("DONE!")
 
 # def log_changes(name, new, old):
