@@ -262,8 +262,11 @@ timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 log.info("Updated as of " + timestamp)
 
 output_dict = { "modules": all_cluster_modules, "date": timestamp, "darcs_log":darcs_log }
+try:
+    c.post_kafka('environment-module-tracking', output_dict)
+except Exception as details:
+    log.info("Push to Kafka failed: " + str(details))
 
-c.post_kafka('environment-module-tracking', output_dict)
 c.writemake_json("module_list.json", output_dict)
 
 log.info("DONE!")

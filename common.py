@@ -37,13 +37,11 @@ def post_kafka(topic, outject):
     }
     data = json.dumps({"records":[{"value":outject}]})
     response = requests.post('https://hpcwprojects05.dev.mahuika.nesi.org.nz:10002/topics/' + topic, headers=headers, data=data, verify=False)
- 
     if response.status_code == 200: 
         log.info("POST to Kafka successful!") 
         return 0
     else:
-        log.error("POST to Kafka failed: " +  str(response.content))
-        return 1
+        raise Exception("User does not have appropriate SLURM permissions to run '" + response.content+ "'")
 
 def readmake_json(path, default={}):
     """Reads and returns JSON file as dictionary, if none exists one will be created with default value."""
