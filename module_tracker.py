@@ -5,13 +5,30 @@ import datetime
 import copy
 import requests
 import time
-
+import boto3
+import json
 
 import common as c
 from common import log
 
 
 
+def push_S3():
+
+    # Create an S3 client
+    S3 = boto3.client(
+        's3',
+        # Hard coded strings as credentials, not recommended.
+        aws_access_key_id='AKIAW7W6PDVYQOXRUYZX',
+        aws_secret_access_key='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')
+
+    jsonp_filename = 'padded_module_list.json'
+    bucket_name = 'nesi-support'
+
+    with open(jsonp_filename, "w+") as f:
+        f.write("jsonp_callback(" + json.dumps(output_dict)  + ");")
+
+    S3.upload_file(jsonp_filename, bucket_name, jsonp_filename, ExtraArgs={"ACL":"public-read"})
 
 def get_darcs_log():
 
@@ -38,7 +55,7 @@ def module_avail(machine, module_path):
     looptime=time.time()
 
     if not "readtime" in settings["clusters"][machine]:
-        settings["clusters"][machine]['readtime']="some seconds"
+        settings["clusters"][machine]['readtime']="'some'"
 
     log.info("Working... Usually takes approx " + settings["clusters"][machine]['readtime'] + " seconds.")
 
@@ -271,6 +288,11 @@ try:
     c.post_kafka('environment-module-tracking', output_dict)
 except Exception as details:
     log.info("Push to Kafka failed: " + str(details))
+
+try:
+    push_S3()
+except Exception as details:
+    log.info("Push to S3 failed: " + str(details))
 
 c.writemake_json("module_list.json", output_dict)
 c.writemake_json("settings.json", settings)
